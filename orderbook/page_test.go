@@ -1,23 +1,16 @@
 package orderbook
 
 import (
-	"container/heap"
 	"testing"
 )
 
 func TestPageHeap(t *testing.T) {
-	buyPage := new(page)
-	sellPage := new(page)
-
-	buyPage.Direction = Buy
-	sellPage.Direction = Sell
-
-	heap.Init(buyPage)
-	heap.Init(sellPage)
+	buyPage := createPage(Buy, nil)
+	sellPage := createPage(Sell, nil)
 
 	for price := 2; price < 10; price++ {
-		heap.Push(buyPage, level{LevelPrice: float64(price)})
-		heap.Push(sellPage, level{LevelPrice: float64(price)})
+		buyPage.addLevel(float64(price), 0)
+		sellPage.addLevel(float64(price), 0)
 	}
 
 	if x := buyPage.bestPrice(); x != 9 {
@@ -28,10 +21,7 @@ func TestPageHeap(t *testing.T) {
 		t.Error("Sell page error")
 	}
 
-	heap.Push(buyPage, level{LevelPrice: float64(6)})
-	heap.Push(sellPage, level{LevelPrice: float64(1)})
-
-	if buyPage.size() != 8 {
+	if ok := buyPage.addLevel(6, 0); ok || buyPage.size() != 8 {
 		t.Error("Buy page push error.")
 	} else if buyPage.bestLevel().LevelPrice != 9 {
 		t.Error("Buy page sort error.")
@@ -39,7 +29,7 @@ func TestPageHeap(t *testing.T) {
 		t.Log(buyPage.priceHeap)
 	}
 
-	if sellPage.size() != 9 {
+	if ok := sellPage.addLevel(1, 0); !ok || sellPage.size() != 9 {
 		t.Error("Sell page push error.")
 	} else if sellPage.bestPrice() != 1 {
 		t.Error("Sell page sort error.")
@@ -47,23 +37,23 @@ func TestPageHeap(t *testing.T) {
 		t.Log(sellPage.priceHeap)
 	}
 
-	sell := heap.Pop(sellPage).(level)
+	sell := sellPage.popLevel()
 	if sell.LevelPrice != 1 {
 		t.Error("Sell page pop error.")
+	} else if lvl := sellPage.removeLevel(6); lvl == nil || sellPage.size() != 7 || sellPage.bestPrice() != 2 {
+		t.Error("Sell page remove level error.")
 	} else {
-		t.Log("Poped sell price:", sell.LevelPrice)
-		// for iter := sellPage.Iterator(); iter.HasNext(); {
-		// 	t.Log(iter.Next().LevelPrice)
-		// }
+		t.Log(sellPage.levelCache)
+		t.Log(sellPage.priceHeap)
 	}
 
-	buy := heap.Pop(buyPage).(level)
+	buy := buyPage.popLevel()
 	if buy.LevelPrice != 9 {
 		t.Error("Buy page pop error.")
+	} else if lvl := buyPage.removeLevel(8); lvl == nil || buyPage.size() != 6 || buyPage.bestPrice() != 7 {
+		t.Error("Buy page remove level error.")
 	} else {
-		t.Log("Poped buy price:", buy.LevelPrice)
-		// for iter := buyPage.Iterator(); iter.HasNext(); {
-		// 	t.Log(iter.Next().LevelPrice)
-		// }
+		t.Log(buyPage.levelCache)
+		t.Log(buyPage.priceHeap)
 	}
 }

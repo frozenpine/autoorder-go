@@ -5,39 +5,10 @@ import (
 	"errors"
 )
 
-// type pageIterator struct {
-// 	pageData *page
-// 	index    int
-// }
-
-// func (i *pageIterator) HasNext() bool {
-// 	return i.index < i.pageData.Len()
-// }
-
-// func (i *pageIterator) nextIndex() {
-// 	if i.pageData.isMinHeap() {
-// 		i.index++
-// 	} else {
-// 		i.index++
-// 	}
-// }
-
-// func (i *pageIterator) Next() *level {
-// 	levelPrice := i.pageData.priceHeap[i.index]
-
-// 	defer i.nextIndex()
-
-// 	if lvl, err := i.pageData.getLevel(levelPrice); err != nil {
-// 		panic(fmt.Sprintf("Error occoured during iteration: %s", err.Error()))
-// 	} else {
-// 		return lvl
-// 	}
-// }
-
 type page struct {
 	Direction  direction
 	parentBook *Book
-	levelCache map[float64]level
+	levelCache map[float64]*level
 	priceHeap  []float64
 }
 
@@ -57,12 +28,12 @@ func (p *page) bestPrice() float64 {
 func (p *page) bestLevel() *level {
 	lvl, _ := p.levelCache[p.bestPrice()]
 
-	return &lvl
+	return lvl
 }
 
 func (p *page) getLevel(price float64) (*level, error) {
 	if lvl, exist := p.levelCache[price]; exist {
-		return &lvl, nil
+		return lvl, nil
 	}
 
 	return nil, errors.New("level not exist")
@@ -79,17 +50,59 @@ func (p *page) size() int {
 	panic("priceHeap size mismatch with levelCache.")
 }
 
+func (p *page) popLevel() *level {
+	lvlPrice := heap.Pop(p).(float64)
+
+	lvl, exist := p.levelCache[lvlPrice]
+	delete(p.levelCache, lvlPrice)
+
+	if !exist {
+		panic("priceHeap data mismatch with levelCache.")
+	}
+
+	return lvl
+}
+
 func (p *page) addLevel(price float64, volume int64) bool {
 	if _, err := p.getLevel(price); err == nil {
 		return false
 	}
 
-	newLevel := level{LevelPrice: price}
-	defer newLevel.build(volume)
+	heap.Push(p, price)
 
-	heap.Push(p, newLevel)
+	newLevel := createLevel(price, p)
+	newLevel.build(volume)
+	p.levelCache[price] = newLevel
 
 	return true
+}
+
+func (p *page) removeLevel(lvlPrice float64) *level {
+	lvl, exist := p.levelCache[lvlPrice]
+	if !exist {
+		return nil
+	}
+
+	defer heap.Init(p)
+
+	delete(p.levelCache, lvlPrice)
+
+	oriLen := len(p.priceHeap)
+
+	for i := 0; i < oriLen; i++ {
+		if p.priceHeap[i] != lvlPrice {
+			continue
+		}
+
+		if i <= oriLen-2 {
+			p.priceHeap = append(p.priceHeap[:i], p.priceHeap[i+1:]...)
+		} else {
+			p.priceHeap = p.priceHeap[:i]
+		}
+		break
+	}
+
+	return lvl
 }
 
 func (p *page) modifyLevel(price float64, volume int64) bool {
@@ -103,10 +116,6 @@ func (p *page) modifyLevel(price float64, volume int64) bool {
 
 	return true
 }
-
-// func (p *page) Iterator() *pageIterator {
-// 	return &pageIterator{pageData: p, index: 0}
-// }
 
 func (p *page) Len() int {
 	return len(p.priceHeap)
@@ -124,26 +133,17 @@ func (p *page) Less(i, j int) bool {
 }
 
 func (p *page) Push(h interface{}) {
-	newLevel := h.(level)
+	lvlPrice := h.(float64)
 
-	if newLevel.LevelPrice == 0 {
+	if lvlPrice == 0 {
 		return
 	}
 
-	if p.levelCache == nil {
-		p.levelCache = make(map[float64]level)
+	if _, exist := p.levelCache[lvlPrice]; exist {
+		panic("conflict level price")
 	}
 
-	if p.priceHeap == nil {
-		p.priceHeap = make([]float64, 0, 10)
-	}
-
-	if oriLevel, exist := p.levelCache[newLevel.LevelPrice]; exist {
-		oriLevel.mergeLevel(newLevel)
-	} else {
-		p.levelCache[newLevel.LevelPrice] = newLevel
-		p.priceHeap = append(p.priceHeap, newLevel.LevelPrice)
-	}
+	p.priceHeap = append(p.priceHeap, lvlPrice)
 }
 
 func (p *page) Pop() (x interface{}) {
@@ -151,14 +151,11 @@ func (p *page) Pop() (x interface{}) {
 	last := p.priceHeap[count-1]
 	p.priceHeap = p.priceHeap[:count-1]
 
-	lvl, _ := p.levelCache[last]
-	delete(p.levelCache, last)
-
-	return lvl
+	return last
 }
 
 func createPage(d direction, parent *Book) *page {
-	p := page{Direction: d, parentBook: parent}
+	p := page{Direction: d, parentBook: parent, priceHeap: make([]float64, 0, 10), levelCache: make(map[float64]*level)}
 
 	return &p
 }
