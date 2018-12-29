@@ -2,14 +2,19 @@ package orderbook
 
 import (
 	"sync/atomic"
+
+	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
-type orderID int64
+type priceItem struct {
+	Price  float64
+	Volume int64
+}
 
 type order struct {
 	priceItem
 	identity
-	LocalID     orderID
+	LocalID     autoorder.OrderID
 	SysID       int64
 	parentLevel *level
 }
@@ -21,7 +26,6 @@ func (ord *order) cancel() {
 
 	delete(ord.parentLevel.Orders, ord.LocalID)
 
-	atomic.AddInt64(&ord.parentLevel.OrderCount, -1)
 	atomic.AddInt64(&ord.parentLevel.TotalVolume, -ord.Volume)
 
 	// todo: cancel order to trading system

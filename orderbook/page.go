@@ -3,15 +3,13 @@ package orderbook
 import (
 	"container/heap"
 	"errors"
+
+	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
 type priceHeap struct {
-	parent *page
-	heap   []float64
-}
-
-func (hp *priceHeap) isMinHeap() bool {
-	return hp.parent.Direction == Sell
+	asc  bool
+	heap []float64
 }
 
 func (hp *priceHeap) Len() int {
@@ -23,7 +21,7 @@ func (hp *priceHeap) Swap(i, j int) {
 }
 
 func (hp *priceHeap) Less(i, j int) bool {
-	if hp.isMinHeap() {
+	if hp.asc {
 		return hp.heap[i] < hp.heap[j]
 	}
 	return hp.heap[i] > hp.heap[j]
@@ -39,7 +37,7 @@ func (hp *priceHeap) Push(h interface{}) {
 	hp.heap = append(hp.heap, lvlPrice)
 }
 
-func (hp *priceHeap) Pop() (x interface{}) {
+func (hp *priceHeap) Pop() interface{} {
 	count := len(hp.heap)
 	last := hp.heap[count-1]
 	hp.heap = hp.heap[:count-1]
@@ -62,33 +60,45 @@ func (hp *priceHeap) removeAt(idx int) {
 }
 
 type page struct {
-	Direction  direction
+	direction  autoorder.Direction
 	parentBook *Book
-	levelCache map[float64]*level
-	levelHeap  priceHeap
+	Levels     map[float64]*level
+	heap       priceHeap
+}
+
+// Overlapped 判断价格是否和当前方向上重叠
+func (p *page) Overlapped(price float64) bool {
+	switch p.direction {
+	case autoorder.Buy:
+		return price <= p.BestPrice()
+	case autoorder.Sell:
+		return price >= p.BestPrice()
+	default:
+		return true
+	}
 }
 
 // BestPrice 获取当前方向上的挂单最优价
 func (p *page) BestPrice() float64 {
-	price := p.levelHeap.heap[0]
+	price := p.heap.heap[0]
 
-	if _, exist := p.levelCache[price]; exist {
+	if _, exist := p.Levels[price]; exist {
 		return price
 	}
 
-	panic("priceHeap mismatch with levelCache.")
+	panic("heap data mismatch with Levels cache.")
 }
 
 // BestLevel 获取当前方向上的最优挂单Level
 func (p *page) BestLevel() *level {
-	lvl, _ := p.levelCache[p.BestPrice()]
+	lvl, _ := p.Levels[p.BestPrice()]
 
 	return lvl
 }
 
 // GetLevel 获取当前方向上特定价格Level
 func (p *page) GetLevel(price float64) (*level, error) {
-	if lvl, exist := p.levelCache[price]; exist {
+	if lvl, exist := p.Levels[price]; exist {
 		return lvl, nil
 	}
 
@@ -97,25 +107,25 @@ func (p *page) GetLevel(price float64) (*level, error) {
 
 // Size 获取当前方向上的挂单Level数
 func (p *page) Size() int {
-	heapLen := p.levelHeap.Len()
-	cacheLen := len(p.levelCache)
+	heapLen := p.heap.Len()
+	cacheLen := len(p.Levels)
 
 	if heapLen == cacheLen {
-		return heapLen
+		return cacheLen
 	}
 
-	panic("priceHeap size mismatch with levelCache.")
+	panic("heap size mismatch with Levels cache.")
 }
 
 // PopLevel 删除当前方向上的最优价Level
 func (p *page) PopLevel() *level {
-	lvlPrice := heap.Pop(&p.levelHeap).(float64)
+	lvlPrice := heap.Pop(&p.heap).(float64)
 
-	lvl, exist := p.levelCache[lvlPrice]
+	lvl, exist := p.Levels[lvlPrice]
 	defer lvl.remove()
 
 	if !exist {
-		panic("priceHeap data mismatch with levelCache.")
+		panic("heap data mismatch with Levels Cache.")
 	}
 
 	return lvl
@@ -127,18 +137,17 @@ func (p *page) AddLevel(price float64, volume int64) bool {
 		return false
 	}
 
-	defer heap.Push(&p.levelHeap, price)
+	defer heap.Push(&p.heap, price)
 
-	newLevel := createLevel(price, p)
-	newLevel.build(volume)
-	p.levelCache[price] = newLevel
+	newLevel := createLevel(price, volume, p)
+	p.Levels[price] = newLevel
 
 	return true
 }
 
 // RemoveLevel 在当前方向上删除价格Level
 func (p *page) RemoveLevel(lvlPrice float64) *level {
-	lvl, exist := p.levelCache[lvlPrice]
+	lvl, exist := p.Levels[lvlPrice]
 
 	if !exist {
 		return nil
@@ -146,12 +155,12 @@ func (p *page) RemoveLevel(lvlPrice float64) *level {
 
 	defer lvl.remove()
 
-	for i := 0; i < p.levelHeap.Len(); i++ {
-		if p.levelHeap.peek(i) != lvlPrice {
+	for i := 0; i < p.heap.Len(); i++ {
+		if p.heap.peek(i) != lvlPrice {
 			continue
 		}
 
-		p.levelHeap.removeAt(i)
+		p.heap.removeAt(i)
 		break
 	}
 
@@ -171,10 +180,16 @@ func (p *page) ModifyLevel(price float64, volume int64) bool {
 	return true
 }
 
-func createPage(d direction, parent *Book) *page {
-	p := page{Direction: d, parentBook: parent, levelCache: make(map[float64]*level)}
-	hp := priceHeap{parent: &p, heap: make([]float64, 0, 10)}
-	p.levelHeap = hp
+func createPage(d autoorder.Direction, parent *Book) *page {
+	p := page{direction: d, parentBook: parent, Levels: make(map[float64]*level)}
+	switch d {
+	case autoorder.Buy:
+		p.heap = priceHeap{asc: false, heap: make([]float64, 0, 10)}
+	case autoorder.Sell:
+		p.heap = priceHeap{asc: true, heap: make([]float64, 0, 10)}
+	default:
+		panic("Invalid direction")
+	}
 
 	return &p
 }

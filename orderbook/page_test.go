@@ -2,11 +2,13 @@ package orderbook
 
 import (
 	"testing"
+
+	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
 func TestPageHeap(t *testing.T) {
-	buyPage := createPage(Buy, nil)
-	sellPage := createPage(Sell, nil)
+	buyPage := createPage(autoorder.Buy, nil)
+	sellPage := createPage(autoorder.Sell, nil)
 
 	for price := 2; price < 10; price++ {
 		buyPage.AddLevel(float64(price), 0)
@@ -26,7 +28,7 @@ func TestPageHeap(t *testing.T) {
 	} else if buyPage.BestLevel().LevelPrice != 9 {
 		t.Error("Buy page sort error.")
 	} else {
-		t.Log(buyPage.levelHeap)
+		t.Log(buyPage.heap)
 	}
 
 	if ok := sellPage.AddLevel(1, 0); !ok || sellPage.Size() != 9 {
@@ -34,7 +36,7 @@ func TestPageHeap(t *testing.T) {
 	} else if sellPage.BestPrice() != 1 {
 		t.Error("Sell page sort error.")
 	} else {
-		t.Log(sellPage.levelHeap)
+		t.Log(sellPage.heap)
 	}
 
 	sell := sellPage.PopLevel()
@@ -43,8 +45,8 @@ func TestPageHeap(t *testing.T) {
 	} else if lvl := sellPage.RemoveLevel(6); lvl == nil || sellPage.Size() != 7 || sellPage.BestPrice() != 2 {
 		t.Error("Sell page remove level error.")
 	} else {
-		t.Log(sellPage.levelCache)
-		t.Log(sellPage.levelHeap)
+		t.Log(sellPage.Levels)
+		t.Log(sellPage.heap)
 	}
 
 	buy := buyPage.PopLevel()
@@ -53,7 +55,7 @@ func TestPageHeap(t *testing.T) {
 	} else if lvl := buyPage.RemoveLevel(8); lvl == nil || buyPage.Size() != 6 || buyPage.BestPrice() != 7 {
 		t.Error("Buy page remove level error.")
 	} else {
-		t.Log(buyPage.levelCache)
-		t.Log(buyPage.levelHeap)
+		t.Log(buyPage.Levels)
+		t.Log(buyPage.heap)
 	}
 }
