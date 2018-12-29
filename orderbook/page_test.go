@@ -9,51 +9,51 @@ func TestPageHeap(t *testing.T) {
 	sellPage := createPage(Sell, nil)
 
 	for price := 2; price < 10; price++ {
-		buyPage.addLevel(float64(price), 0)
-		sellPage.addLevel(float64(price), 0)
+		buyPage.AddLevel(float64(price), 0)
+		sellPage.AddLevel(float64(price), 0)
 	}
 
-	if x := buyPage.bestPrice(); x != 9 {
+	if x := buyPage.BestPrice(); x != 9 {
 		t.Error("Buy page error")
 	}
 
-	if x := sellPage.bestPrice(); x != 2 {
+	if x := sellPage.BestPrice(); x != 2 {
 		t.Error("Sell page error")
 	}
 
-	if ok := buyPage.addLevel(6, 0); ok || buyPage.size() != 8 {
+	if ok := buyPage.AddLevel(6, 0); ok || buyPage.Size() != 8 {
 		t.Error("Buy page push error.")
-	} else if buyPage.bestLevel().LevelPrice != 9 {
+	} else if buyPage.BestLevel().LevelPrice != 9 {
 		t.Error("Buy page sort error.")
 	} else {
-		t.Log(buyPage.priceHeap)
+		t.Log(buyPage.levelHeap)
 	}
 
-	if ok := sellPage.addLevel(1, 0); !ok || sellPage.size() != 9 {
+	if ok := sellPage.AddLevel(1, 0); !ok || sellPage.Size() != 9 {
 		t.Error("Sell page push error.")
-	} else if sellPage.bestPrice() != 1 {
+	} else if sellPage.BestPrice() != 1 {
 		t.Error("Sell page sort error.")
 	} else {
-		t.Log(sellPage.priceHeap)
+		t.Log(sellPage.levelHeap)
 	}
 
-	sell := sellPage.popLevel()
+	sell := sellPage.PopLevel()
 	if sell.LevelPrice != 1 {
 		t.Error("Sell page pop error.")
-	} else if lvl := sellPage.removeLevel(6); lvl == nil || sellPage.size() != 7 || sellPage.bestPrice() != 2 {
+	} else if lvl := sellPage.RemoveLevel(6); lvl == nil || sellPage.Size() != 7 || sellPage.BestPrice() != 2 {
 		t.Error("Sell page remove level error.")
 	} else {
 		t.Log(sellPage.levelCache)
-		t.Log(sellPage.priceHeap)
+		t.Log(sellPage.levelHeap)
 	}
 
-	buy := buyPage.popLevel()
+	buy := buyPage.PopLevel()
 	if buy.LevelPrice != 9 {
 		t.Error("Buy page pop error.")
-	} else if lvl := buyPage.removeLevel(8); lvl == nil || buyPage.size() != 6 || buyPage.bestPrice() != 7 {
+	} else if lvl := buyPage.RemoveLevel(8); lvl == nil || buyPage.Size() != 6 || buyPage.BestPrice() != 7 {
 		t.Error("Buy page remove level error.")
 	} else {
 		t.Log(buyPage.levelCache)
-		t.Log(buyPage.priceHeap)
+		t.Log(buyPage.levelHeap)
 	}
 }

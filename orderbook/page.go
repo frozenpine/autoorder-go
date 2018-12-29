@@ -5,19 +5,73 @@ import (
 	"errors"
 )
 
+type priceHeap struct {
+	parent *page
+	heap   []float64
+}
+
+func (hp *priceHeap) isMinHeap() bool {
+	return hp.parent.Direction == Sell
+}
+
+func (hp *priceHeap) Len() int {
+	return len(hp.heap)
+}
+
+func (hp *priceHeap) Swap(i, j int) {
+	hp.heap[i], hp.heap[j] = hp.heap[j], hp.heap[i]
+}
+
+func (hp *priceHeap) Less(i, j int) bool {
+	if hp.isMinHeap() {
+		return hp.heap[i] < hp.heap[j]
+	}
+	return hp.heap[i] > hp.heap[j]
+}
+
+func (hp *priceHeap) Push(h interface{}) {
+	lvlPrice := h.(float64)
+
+	if lvlPrice == 0 {
+		return
+	}
+
+	hp.heap = append(hp.heap, lvlPrice)
+}
+
+func (hp *priceHeap) Pop() (x interface{}) {
+	count := len(hp.heap)
+	last := hp.heap[count-1]
+	hp.heap = hp.heap[:count-1]
+
+	return last
+}
+
+func (hp *priceHeap) peek(idx int) float64 {
+	return hp.heap[idx]
+}
+
+func (hp *priceHeap) removeAt(idx int) {
+	if idx <= hp.Len()-2 {
+		hp.heap = append(hp.heap[:idx], hp.heap[idx+1:]...)
+	} else {
+		hp.heap = hp.heap[:idx]
+	}
+
+	heap.Init(hp)
+}
+
 type page struct {
 	Direction  direction
 	parentBook *Book
 	levelCache map[float64]*level
-	priceHeap  []float64
+	levelHeap  priceHeap
 }
 
-func (p *page) isMinHeap() bool {
-	return p.Direction == Sell
-}
+// BestPrice 获取当前方向上的挂单最优价
+func (p *page) BestPrice() float64 {
+	price := p.levelHeap.heap[0]
 
-func (p *page) bestPrice() float64 {
-	price := p.priceHeap[0]
 	if _, exist := p.levelCache[price]; exist {
 		return price
 	}
@@ -25,13 +79,15 @@ func (p *page) bestPrice() float64 {
 	panic("priceHeap mismatch with levelCache.")
 }
 
-func (p *page) bestLevel() *level {
-	lvl, _ := p.levelCache[p.bestPrice()]
+// BestLevel 获取当前方向上的最优挂单Level
+func (p *page) BestLevel() *level {
+	lvl, _ := p.levelCache[p.BestPrice()]
 
 	return lvl
 }
 
-func (p *page) getLevel(price float64) (*level, error) {
+// GetLevel 获取当前方向上特定价格Level
+func (p *page) GetLevel(price float64) (*level, error) {
 	if lvl, exist := p.levelCache[price]; exist {
 		return lvl, nil
 	}
@@ -39,8 +95,9 @@ func (p *page) getLevel(price float64) (*level, error) {
 	return nil, errors.New("level not exist")
 }
 
-func (p *page) size() int {
-	heapLen := len(p.priceHeap)
+// Size 获取当前方向上的挂单Level数
+func (p *page) Size() int {
+	heapLen := p.levelHeap.Len()
 	cacheLen := len(p.levelCache)
 
 	if heapLen == cacheLen {
@@ -50,11 +107,12 @@ func (p *page) size() int {
 	panic("priceHeap size mismatch with levelCache.")
 }
 
-func (p *page) popLevel() *level {
-	lvlPrice := heap.Pop(p).(float64)
+// PopLevel 删除当前方向上的最优价Level
+func (p *page) PopLevel() *level {
+	lvlPrice := heap.Pop(&p.levelHeap).(float64)
 
 	lvl, exist := p.levelCache[lvlPrice]
-	delete(p.levelCache, lvlPrice)
+	defer lvl.remove()
 
 	if !exist {
 		panic("priceHeap data mismatch with levelCache.")
@@ -63,12 +121,13 @@ func (p *page) popLevel() *level {
 	return lvl
 }
 
-func (p *page) addLevel(price float64, volume int64) bool {
-	if _, err := p.getLevel(price); err == nil {
+// AddLevel 在当前方向上新增一个价格Level
+func (p *page) AddLevel(price float64, volume int64) bool {
+	if _, err := p.GetLevel(price); err == nil {
 		return false
 	}
 
-	heap.Push(p, price)
+	defer heap.Push(&p.levelHeap, price)
 
 	newLevel := createLevel(price, p)
 	newLevel.build(volume)
@@ -77,36 +136,31 @@ func (p *page) addLevel(price float64, volume int64) bool {
 	return true
 }
 
-func (p *page) removeLevel(lvlPrice float64) *level {
+// RemoveLevel 在当前方向上删除价格Level
+func (p *page) RemoveLevel(lvlPrice float64) *level {
 	lvl, exist := p.levelCache[lvlPrice]
+
 	if !exist {
 		return nil
 	}
 
-	defer heap.Init(p)
+	defer lvl.remove()
 
-	delete(p.levelCache, lvlPrice)
-
-	oriLen := len(p.priceHeap)
-
-	for i := 0; i < oriLen; i++ {
-		if p.priceHeap[i] != lvlPrice {
+	for i := 0; i < p.levelHeap.Len(); i++ {
+		if p.levelHeap.peek(i) != lvlPrice {
 			continue
 		}
 
-		if i <= oriLen-2 {
-			p.priceHeap = append(p.priceHeap[:i], p.priceHeap[i+1:]...)
-		} else {
-			p.priceHeap = p.priceHeap[:i]
-		}
+		p.levelHeap.removeAt(i)
 		break
 	}
 
 	return lvl
 }
 
-func (p *page) modifyLevel(price float64, volume int64) bool {
-	lvl, err := p.getLevel(price)
+// ModifyLevel 在当前方向上修改对应价格Level的量
+func (p *page) ModifyLevel(price float64, volume int64) bool {
+	lvl, err := p.GetLevel(price)
 
 	if err != nil {
 		return false
@@ -117,45 +171,10 @@ func (p *page) modifyLevel(price float64, volume int64) bool {
 	return true
 }
 
-func (p *page) Len() int {
-	return len(p.priceHeap)
-}
-
-func (p *page) Swap(i, j int) {
-	p.priceHeap[i], p.priceHeap[j] = p.priceHeap[j], p.priceHeap[i]
-}
-
-func (p *page) Less(i, j int) bool {
-	if p.isMinHeap() {
-		return p.priceHeap[i] < p.priceHeap[j]
-	}
-	return p.priceHeap[i] > p.priceHeap[j]
-}
-
-func (p *page) Push(h interface{}) {
-	lvlPrice := h.(float64)
-
-	if lvlPrice == 0 {
-		return
-	}
-
-	if _, exist := p.levelCache[lvlPrice]; exist {
-		panic("conflict level price")
-	}
-
-	p.priceHeap = append(p.priceHeap, lvlPrice)
-}
-
-func (p *page) Pop() (x interface{}) {
-	count := len(p.priceHeap)
-	last := p.priceHeap[count-1]
-	p.priceHeap = p.priceHeap[:count-1]
-
-	return last
-}
-
 func createPage(d direction, parent *Book) *page {
-	p := page{Direction: d, parentBook: parent, priceHeap: make([]float64, 0, 10), levelCache: make(map[float64]*level)}
+	p := page{Direction: d, parentBook: parent, levelCache: make(map[float64]*level)}
+	hp := priceHeap{parent: &p, heap: make([]float64, 0, 10)}
+	p.levelHeap = hp
 
 	return &p
 }

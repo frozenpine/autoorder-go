@@ -11,6 +11,17 @@ const (
 	Sell
 )
 
+func (d direction) opposite() direction {
+	switch d {
+	case Buy:
+		return Sell
+	case Sell:
+		return Buy
+	default:
+		panic("Invalid direction.")
+	}
+}
+
 type priceItem struct {
 	Price  float64
 	Volume int64

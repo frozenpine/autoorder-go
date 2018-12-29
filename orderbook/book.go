@@ -4,7 +4,7 @@ import (
 	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
 )
 
-// Book 订单部
+// Book 订单簿
 type Book struct {
 	identity
 	spread

@@ -28,10 +28,6 @@ func (lvl *level) modify(volume int64) {
 
 func (lvl *level) remove() {
 	delete(lvl.parentPage.levelCache, lvl.LevelPrice)
-
-	lvl.LevelPrice = 0
-	lvl.TotalVolume = 0
-	lvl.OrderCount = 0
 }
 
 func createLevel(price float64, parent *page) *level {

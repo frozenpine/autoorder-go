@@ -16,4 +16,6 @@ func TestCreateOb(t *testing.T) {
 	if ob.Asks.Direction != Sell || ob.Bids.Direction != Buy {
 		t.Error("Page directiion fail.")
 	}
+
+	t.Log(ob.Asks.Size())
 }
