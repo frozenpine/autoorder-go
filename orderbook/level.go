@@ -1,9 +1,21 @@
 package orderbook
 
 import (
+	"container/heap"
+	"fmt"
+	"math/rand"
+	"time"
+
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
+const (
+	tinyVolumeCount  int   = 5
+	hugeVolumeFactor int64 = 100
+	tinyVolumeFactor int64 = 10
+)
+
+// volumeHeap 根据order.Volume排序的大顶堆
 type volumeHeap struct {
 	parent *level
 	heap   []autoorder.OrderID
@@ -46,12 +58,12 @@ func (oh *volumeHeap) Pop() interface{} {
 }
 
 type level struct {
-	LevelPrice  float64
-	TotalVolume int64
-	Orders      map[autoorder.OrderID]*order
-	sysIDMapper map[int64]autoorder.OrderID
-	heap        volumeHeap
-	parentPage  *page
+	LevelPrice     float64
+	Orders         map[autoorder.OrderID]*order
+	sysIDMapper    map[int64]autoorder.OrderID
+	heap           volumeHeap
+	maxVolPerOrder int64
+	parentPage     *page
 }
 
 func (lvl *level) Exist(ord *order) bool {
@@ -78,6 +90,14 @@ func (lvl *level) ExistSysID(id int64) bool {
 	panic("sysIDMapper data mismatch with Orders cache.")
 }
 
+func (lvl *level) TotalVolume() int64 {
+	var total int64
+	for _, ord := range lvl.Orders {
+		total += ord.Volume
+	}
+	return total
+}
+
 func (lvl *level) Count() int {
 	heapCount := lvl.heap.Len()
 	orderCount := len(lvl.Orders)
@@ -89,14 +109,106 @@ func (lvl *level) Count() int {
 	panic("heap data mismatch with Orders cache.")
 }
 
-func (lvl *level) splitVolumes() {
-	// todo: 自动拆单
+// GetOrder 根据OrderLocalID获得order对象
+func (lvl *level) GetOrder(id autoorder.OrderID) (*order, error) {
+	ord, exist := lvl.Orders[id]
+
+	if exist {
+		return ord, nil
+	}
+
+	return nil, fmt.Errorf("Order not exist with localID[%d]", id)
+}
+
+func (lvl *level) pushOrder(vol int64) {
+	ord := createOrder(lvl.LevelPrice, vol, lvl)
+
+	lvl.Orders[ord.LocalID] = ord
+
+	heap.Push(&lvl.heap, ord.LocalID)
+}
+
+func (lvl *level) popOrder() *order {
+	orderID := heap.Pop(&lvl.heap).(autoorder.OrderID)
+
+	ord, err := lvl.GetOrder(orderID)
+
+	if err != nil {
+		panic("heap data mismatch with Orders cache.")
+	}
+
+	delete(lvl.Orders, ord.LocalID)
+	if ord.SysID > 0 {
+		delete(lvl.sysIDMapper, ord.SysID)
+	}
+
+	return ord
+}
+
+func (lvl *level) splitVolumes(vol int64) {
+	if !validateVolume(lvl.maxVolPerOrder) {
+		return
+	}
+
+	oriTotal := lvl.TotalVolume()
+
+	if oriTotal >= vol {
+		return
+	}
+
+	remainedVol := oriTotal - vol
+	var ordVol int64
+
+	for remainedVol > 0 {
+		r := rand.New(rand.NewSource(time.Now().Unix()))
+
+		if lvl.Count() < tinyVolumeCount {
+			// 随机数范围为[0, n), 随机数值+1以避免vol出现0值
+			if vol >= lvl.maxVolPerOrder {
+				ordVol = r.Int63n(hugeVolumeFactor) + 1
+			} else {
+				ordVol = r.Int63n(tinyVolumeFactor) + 1
+			}
+		} else {
+			ordVol = lvl.maxVolPerOrder
+		}
+
+		if ordVol >= remainedVol {
+			ordVol = remainedVol
+		}
+
+		lvl.pushOrder(ordVol)
+
+		remainedVol -= ordVol
+	}
 }
 
 func (lvl *level) Modify(volume int64) {
-	lvl.TotalVolume = volume
+	diffVolume := lvl.TotalVolume() - volume
 
-	lvl.splitVolumes()
+	if diffVolume == 0 {
+		return
+	}
+
+	volRemained := diffVolume
+
+	if diffVolume > 0 {
+		// 新的Volume量少, 需要取消原有Level中委托的量
+		for {
+			maxVolOrder := lvl.popOrder()
+
+			maxVolOrder.cancel()
+
+			if maxVolOrder.Volume >= volRemained {
+				// todo: 生成新的(maxVolOrder.Volume - volRemained)差额委托，push到level中
+				break
+			}
+
+			volRemained -= maxVolOrder.Volume
+		}
+	} else {
+		lvl.splitVolumes(volume)
+	}
 }
 
 func (lvl *level) Remove() {
@@ -108,10 +220,17 @@ func (lvl *level) Remove() {
 }
 
 func createLevel(price float64, vol int64, parent *page) *level {
-	lvl := level{LevelPrice: price, TotalVolume: vol, parentPage: parent, Orders: make(map[autoorder.OrderID]*order)}
+	lvl := level{
+		LevelPrice: price,
+		parentPage: parent,
+		Orders:     make(map[autoorder.OrderID]*order)}
 	lvl.heap.parent = &lvl
 
-	lvl.splitVolumes()
+	if parent != nil && parent.parentBook != nil {
+		lvl.maxVolPerOrder = parent.parentBook.MaxVolPerOrder
+	}
+
+	lvl.splitVolumes(vol)
 
 	return &lvl
 }
