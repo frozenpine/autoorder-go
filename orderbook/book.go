@@ -77,7 +77,10 @@ func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open f
 		return nil
 	}
 
-	book := Book{trader: traderAPI, identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID}, spread: spread{TickPrice: tick}}
+	book := Book{
+		trader:   traderAPI,
+		identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID},
+		spread:   spread{TickPrice: tick}}
 
 	book.initSpread(open, 0, 0, 0, 0)
 

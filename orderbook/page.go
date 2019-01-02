@@ -181,7 +181,11 @@ func (p *page) ModifyLevel(price float64, volume int64) bool {
 }
 
 func createPage(d autoorder.Direction, parent *Book) *page {
-	p := page{direction: d, parentBook: parent, Levels: make(map[float64]*level)}
+	p := page{
+		direction:  d,
+		parentBook: parent,
+		Levels:     make(map[float64]*level)}
+
 	switch d {
 	case autoorder.Buy:
 		p.heap = priceHeap{asc: false, heap: make([]float64, 0, 10)}
