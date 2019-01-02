@@ -20,7 +20,7 @@ type order struct {
 }
 
 func (ord *order) cancel() {
-	if !ord.parentLevel.exist(ord) {
+	if !ord.parentLevel.Exist(ord) {
 		return
 	}
 

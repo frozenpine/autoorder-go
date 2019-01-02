@@ -122,7 +122,7 @@ func (p *page) PopLevel() *level {
 	lvlPrice := heap.Pop(&p.heap).(float64)
 
 	lvl, exist := p.Levels[lvlPrice]
-	defer lvl.remove()
+	defer lvl.Remove()
 
 	if !exist {
 		panic("heap data mismatch with Levels Cache.")
@@ -153,7 +153,7 @@ func (p *page) RemoveLevel(lvlPrice float64) *level {
 		return nil
 	}
 
-	defer lvl.remove()
+	defer lvl.Remove()
 
 	for i := 0; i < p.heap.Len(); i++ {
 		if p.heap.peek(i) != lvlPrice {
@@ -175,7 +175,7 @@ func (p *page) ModifyLevel(price float64, volume int64) bool {
 		return false
 	}
 
-	lvl.modify(volume)
+	lvl.Modify(volume)
 
 	return true
 }

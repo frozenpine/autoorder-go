@@ -54,10 +54,28 @@ type level struct {
 	parentPage  *page
 }
 
-func (lvl *level) exist(ord *order) bool {
-	_, exist := lvl.Orders[ord.LocalID]
+func (lvl *level) Exist(ord *order) bool {
+	return lvl.ExistLocalID(ord.LocalID)
+}
+
+func (lvl *level) ExistLocalID(id autoorder.OrderID) bool {
+	_, exist := lvl.Orders[id]
 
 	return exist
+}
+
+func (lvl *level) ExistSysID(id int64) bool {
+	localID, exist := lvl.sysIDMapper[id]
+
+	if !exist {
+		return false
+	}
+
+	if lvl.ExistLocalID(localID) {
+		return true
+	}
+
+	panic("sysIDMapper data mismatch with Orders cache.")
 }
 
 func (lvl *level) Count() int {
@@ -75,18 +93,18 @@ func (lvl *level) splitVolumes() {
 	// todo: 自动拆单
 }
 
-func (lvl *level) modify(volume int64) {
+func (lvl *level) Modify(volume int64) {
 	lvl.TotalVolume = volume
 
 	lvl.splitVolumes()
 }
 
-func (lvl *level) remove() {
+func (lvl *level) Remove() {
 	if lvl.parentPage != nil {
 		delete(lvl.parentPage.Levels, lvl.LevelPrice)
 	}
 
-	// todo: level中的委托处理
+	// todo: level中的委托处理, 反向FAK对冲当前Level的Volume
 }
 
 func createLevel(price float64, vol int64, parent *page) *level {
