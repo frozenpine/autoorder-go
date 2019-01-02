@@ -9,6 +9,7 @@ import (
 type spread struct {
 	makeBlock     bool
 	blockTick     int
+	TickPrice     float64
 	OpenPrice     float64
 	ClosePrice    float64
 	HightestPrice float64
@@ -64,7 +65,7 @@ func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
 	case autoorder.Buy:
 		blockPrice := sp.calculateFloor(price)
 		if sp.floorBlock == nil || blockPrice < sp.floorBlock.LevelPrice {
-			sp.floorBlock.remove()
+			sp.floorBlock.Remove()
 
 		}
 	case autoorder.Sell:

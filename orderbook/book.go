@@ -32,7 +32,6 @@ type Book struct {
 	identity
 	spread
 	trader         *trader.TraderAPI
-	TickPrice      float64
 	MaxVolPerOrder int64
 	Asks           *page
 	Bids           *page
@@ -55,6 +54,7 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 	for oppsite.Overlapped(price) {
 		lvl := oppsite.PopLevel()
 		log.Println(lvl)
+		lvl.Remove()
 	}
 
 	_, err := dst.GetLevel(price)
@@ -66,13 +66,18 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 	}
 }
 
+// Rebuild 根据已有委托重建订单簿
+func (ob *Book) Rebuild(d autoorder.Direction, price float64, vol int64, localID autoorder.OrderID, sysID int64) {
+
+}
+
 // CreateOrderBook OrderBook工厂函数
 func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, traderAPI *trader.TraderAPI) *Book {
 	if !validateVolume(maxVol) || !validatePrice(tick) || !validatePrice(open) {
 		return nil
 	}
 
-	book := Book{trader: traderAPI, identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID}, TickPrice: tick}
+	book := Book{trader: traderAPI, identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID}, spread: spread{TickPrice: tick}}
 
 	book.initSpread(open, 0, 0, 0, 0)
 
