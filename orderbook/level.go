@@ -256,7 +256,7 @@ func (lvl *level) Modify(volume int64) {
 		for {
 			maxVolOrder := lvl.PopOrder()
 
-			lvl.DeleteOrder(maxVolOrder.LocalID)
+			lvl.api.Cancel(maxVolOrder.LocalID)
 
 			if maxVolOrder.Volume >= volRemained {
 				lvl.NewOrder(maxVolOrder.Volume - volRemained)
