@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"container/heap"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
@@ -158,6 +159,8 @@ func (lvl *level) DeleteOrder(oid autoorder.OrderID) (*order, error) {
 		return nil, err
 	}
 
+	defer lvl.api.Cancel(ord.LocalID)
+
 	delete(lvl.Orders, ord.LocalID)
 	delete(lvl.sysIDMapper, ord.SysID)
 
@@ -194,6 +197,9 @@ func (lvl *level) PopOrder() *order {
 		panic("heap data mismatch with Orders cache.")
 	}
 
+	delete(lvl.Orders, oid)
+	delete(lvl.sysIDMapper, ord.SysID)
+
 	return ord
 }
 
@@ -213,9 +219,9 @@ func (lvl *level) splitVolumes(vol int64) {
 	var ordVol int64
 
 	for remainedVol > 0 {
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 		if lvl.Count() < tinyVolumeCount {
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 			// 随机数范围为[0, n), 随机数值+1以避免vol出现0值
 			if vol >= lvl.maxVolPerOrder {
 				ordVol = r.Int63n(hugeVolumeFactor) + 1
@@ -248,12 +254,12 @@ func (lvl *level) Modify(volume int64) {
 	if diffVolume > 0 {
 		// 新的Volume量少, 需要取消原有Level中委托的量
 		for {
-			maxVolOrder := lvl.PeekOrder()
+			maxVolOrder := lvl.PopOrder()
 
-			// maxVolOrder.cancel()
+			lvl.DeleteOrder(maxVolOrder.LocalID)
 
 			if maxVolOrder.Volume >= volRemained {
-				// todo: 生成新的(maxVolOrder.Volume - volRemained)差额委托，push到level中
+				lvl.NewOrder(maxVolOrder.Volume - volRemained)
 				break
 			}
 
@@ -282,6 +288,11 @@ func (lvl *level) HedgeAll() {
 	defer lvl.remove()
 
 	lvl.api.Hedge(lvl.LevelPrice, lvl.TotalVolume())
+}
+
+func (lvl *level) Snapshot() string {
+	data, _ := json.Marshal(lvl.Orders)
+	return string(data)
 }
 
 func newLevel(price float64, vol int64, maxVol int64, api orderAPI) *level {
