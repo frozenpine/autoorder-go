@@ -11,7 +11,7 @@ import (
 func TestPageHeap(t *testing.T) {
 	mock := new(trader.MockTrader)
 	buyPage := newPage(autoorder.Buy, 1000, mock)
-	sellPage := newPage(autoorder.Sell, 1000, mock)
+	sellPage := newPage(autoorder.Sell, 0, mock)
 
 	for price := 2; price < 10; price++ {
 		buyPage.AddLevel(float64(price), 10)

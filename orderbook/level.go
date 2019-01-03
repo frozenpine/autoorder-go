@@ -264,7 +264,23 @@ func (lvl *level) Modify(volume int64) {
 	}
 }
 
-func (lvl *level) Remove() {
+func (lvl *level) remove() {
+	lvl.heap.heap = nil
+	lvl.Orders = nil
+	lvl.sysIDMapper = nil
+}
+
+func (lvl *level) CancelAll() {
+	defer lvl.remove()
+
+	for oid := range lvl.Orders {
+		lvl.api.Cancel(oid)
+	}
+}
+
+func (lvl *level) HedgeAll() {
+	defer lvl.remove()
+
 	lvl.api.Hedge(lvl.LevelPrice, lvl.TotalVolume())
 }
 

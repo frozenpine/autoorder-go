@@ -65,8 +65,7 @@ func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
 	case autoorder.Buy:
 		blockPrice := sp.calculateFloor(price)
 		if sp.floorBlock == nil || blockPrice < sp.floorBlock.LevelPrice {
-			sp.floorBlock.Remove()
-
+			sp.floorBlock.CancelAll()
 		}
 	case autoorder.Sell:
 	default:

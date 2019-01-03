@@ -54,7 +54,6 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 	for oppsite.Overlapped(price) {
 		lvl := oppsite.PopLevel()
 		log.Println(lvl)
-		lvl.Remove()
 	}
 
 	_, err := dst.GetLevel(price)
