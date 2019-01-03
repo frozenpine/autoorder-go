@@ -31,7 +31,7 @@ func validatePrice(price float64) bool {
 type Book struct {
 	identity
 	spread
-	trader         *trader.TraderAPI
+	trader         trader.TraderAPI
 	MaxVolPerOrder int64
 	Asks           *page
 	Bids           *page
@@ -72,20 +72,20 @@ func (ob *Book) Rebuild(d autoorder.Direction, price float64, vol int64, localID
 }
 
 // CreateOrderBook OrderBook工厂函数
-func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, traderAPI *trader.TraderAPI) *Book {
+func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, api trader.TraderAPI) *Book {
 	if !validateVolume(maxVol) || !validatePrice(tick) || !validatePrice(open) {
 		return nil
 	}
 
 	book := Book{
-		trader:   traderAPI,
+		trader:   api,
 		identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID},
 		spread:   spread{TickPrice: tick}}
 
 	book.initSpread(open, 0, 0, 0, 0)
 
-	book.Asks = createPage(autoorder.Sell, &book)
-	book.Bids = createPage(autoorder.Buy, &book)
+	book.Asks = newPage(autoorder.Sell, maxVol, api)
+	book.Bids = newPage(autoorder.Buy, maxVol, api)
 
 	return &book
 }

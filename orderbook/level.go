@@ -21,21 +21,21 @@ type volumeHeap struct {
 	heap   []autoorder.OrderID
 }
 
-func (oh *volumeHeap) Len() int {
-	return len(oh.heap)
+func (h *volumeHeap) Len() int {
+	return len(h.heap)
 }
 
-func (oh *volumeHeap) Swap(i, j int) {
-	oh.heap[i], oh.heap[j] = oh.heap[j], oh.heap[i]
+func (h *volumeHeap) Swap(i, j int) {
+	h.heap[i], h.heap[j] = h.heap[j], h.heap[i]
 }
 
-func (oh *volumeHeap) Less(i, j int) bool {
-	left, exist := oh.parent.Orders[oh.heap[i]]
+func (h *volumeHeap) Less(i, j int) bool {
+	left, exist := h.parent.Orders[h.heap[i]]
 	if !exist {
 		panic("heap data mismatch with Orders cache.")
 	}
 
-	right, exist := oh.parent.Orders[oh.heap[j]]
+	right, exist := h.parent.Orders[h.heap[j]]
 	if !exist {
 		panic("heap data mismatch with Orders cache.")
 	}
@@ -43,18 +43,33 @@ func (oh *volumeHeap) Less(i, j int) bool {
 	return left.Volume >= right.Volume
 }
 
-func (oh *volumeHeap) Push(h interface{}) {
-	oid := h.(autoorder.OrderID)
-
-	oh.heap = append(oh.heap, oid)
+func (h *volumeHeap) Push(v interface{}) {
+	oid := v.(autoorder.OrderID)
+	h.heap = append(h.heap, oid)
 }
 
-func (oh *volumeHeap) Pop() interface{} {
-	count := len(oh.heap)
-	last := oh.heap[count-1]
-	oh.heap = oh.heap[:count-1]
+func (h *volumeHeap) Pop() interface{} {
+	count := len(h.heap)
+	last := h.heap[count-1]
+	h.heap = h.heap[:count-1]
 
 	return last
+}
+
+func (h *volumeHeap) removeAt(idx int) {
+	if idx <= h.Len()-2 {
+		h.heap = append(h.heap[:idx], h.heap[idx+1:]...)
+	} else {
+		h.heap = h.heap[:idx]
+	}
+
+	heap.Init(h)
+}
+
+type orderAPI interface {
+	Order(price float64, vol int64) (autoorder.OrderID, error)
+	Cancel(oid autoorder.OrderID) error
+	Hedge(price float64, vol int64) error
 }
 
 type level struct {
@@ -63,7 +78,7 @@ type level struct {
 	sysIDMapper    map[int64]autoorder.OrderID
 	heap           volumeHeap
 	maxVolPerOrder int64
-	parentPage     *page
+	api            orderAPI
 }
 
 func (lvl *level) Exist(ord *order) bool {
@@ -109,54 +124,92 @@ func (lvl *level) Count() int {
 	panic("heap data mismatch with Orders cache.")
 }
 
+func (lvl *level) NewOrder(vol int64) error {
+	oid, err := lvl.api.Order(lvl.LevelPrice, vol)
+
+	if err != nil {
+		return err
+	}
+
+	ord := newOrder(vol, oid)
+
+	lvl.Orders[oid] = ord
+
+	heap.Push(&lvl.heap, oid)
+
+	return nil
+}
+
 // GetOrder 根据OrderLocalID获得order对象
-func (lvl *level) GetOrder(id autoorder.OrderID) (*order, error) {
-	ord, exist := lvl.Orders[id]
+func (lvl *level) GetOrder(oid autoorder.OrderID) (*order, error) {
+	ord, exist := lvl.Orders[oid]
 
 	if exist {
 		return ord, nil
 	}
 
-	return nil, fmt.Errorf("Order not exist with localID[%d]", id)
+	return nil, fmt.Errorf("Order not exist with localID[%d]", oid)
 }
 
-func (lvl *level) pushOrder(vol int64) {
-	ord := createOrder(lvl.LevelPrice, vol, lvl)
+func (lvl *level) DeleteOrder(oid autoorder.OrderID) (*order, error) {
+	ord, err := lvl.GetOrder(oid)
 
-	lvl.Orders[ord.LocalID] = ord
+	if err != nil {
+		return nil, err
+	}
 
-	heap.Push(&lvl.heap, ord.LocalID)
+	delete(lvl.Orders, ord.LocalID)
+	delete(lvl.sysIDMapper, ord.SysID)
+
+	for i := 0; i < lvl.heap.Len(); i++ {
+		if lvl.heap.heap[i] != ord.LocalID {
+			continue
+		}
+
+		lvl.heap.removeAt(i)
+		break
+	}
+
+	return ord, nil
 }
 
-func (lvl *level) popOrder() *order {
-	orderID := heap.Pop(&lvl.heap).(autoorder.OrderID)
+func (lvl *level) PeekOrder() *order {
+	oid := lvl.heap.heap[0]
 
-	ord, err := lvl.GetOrder(orderID)
+	ord, err := lvl.GetOrder(oid)
 
 	if err != nil {
 		panic("heap data mismatch with Orders cache.")
 	}
 
-	delete(lvl.Orders, ord.LocalID)
-	if ord.SysID > 0 {
-		delete(lvl.sysIDMapper, ord.SysID)
+	return ord
+}
+
+func (lvl *level) PopOrder() *order {
+	oid := heap.Pop(&lvl.heap).(autoorder.OrderID)
+
+	ord, err := lvl.GetOrder(oid)
+
+	if err != nil {
+		panic("heap data mismatch with Orders cache.")
 	}
 
 	return ord
 }
 
 func (lvl *level) splitVolumes(vol int64) {
-	if !validateVolume(lvl.maxVolPerOrder) {
-		return
-	}
-
 	oriTotal := lvl.TotalVolume()
 
 	if oriTotal >= vol {
 		return
 	}
 
-	remainedVol := oriTotal - vol
+	if !validateVolume(lvl.maxVolPerOrder) {
+		lvl.NewOrder(vol)
+		return
+	}
+
+	remainedVol := vol - oriTotal
 	var ordVol int64
 
 	for remainedVol > 0 {
@@ -173,11 +226,11 @@ func (lvl *level) splitVolumes(vol int64) {
 			ordVol = lvl.maxVolPerOrder
 		}
 
-		if ordVol >= remainedVol {
+		if ordVol > remainedVol {
 			ordVol = remainedVol
 		}
 
-		lvl.pushOrder(ordVol)
+		lvl.NewOrder(ordVol)
 
 		remainedVol -= ordVol
 	}
@@ -195,9 +248,9 @@ func (lvl *level) Modify(volume int64) {
 	if diffVolume > 0 {
 		// 新的Volume量少, 需要取消原有Level中委托的量
 		for {
-			maxVolOrder := lvl.popOrder()
+			maxVolOrder := lvl.PeekOrder()
 
-			maxVolOrder.cancel()
+			// maxVolOrder.cancel()
 
 			if maxVolOrder.Volume >= volRemained {
 				// todo: 生成新的(maxVolOrder.Volume - volRemained)差额委托，push到level中
@@ -212,23 +265,16 @@ func (lvl *level) Modify(volume int64) {
 }
 
 func (lvl *level) Remove() {
-	if lvl.parentPage != nil {
-		delete(lvl.parentPage.Levels, lvl.LevelPrice)
-	}
-
-	// todo: level中的委托处理, 反向FAK对冲当前Level的Volume
+	lvl.api.Hedge(lvl.LevelPrice, lvl.TotalVolume())
 }
 
-func createLevel(price float64, vol int64, parent *page) *level {
+func newLevel(price float64, vol int64, maxVol int64, api orderAPI) *level {
 	lvl := level{
-		LevelPrice: price,
-		parentPage: parent,
-		Orders:     make(map[autoorder.OrderID]*order)}
+		LevelPrice:     price,
+		Orders:         make(map[autoorder.OrderID]*order),
+		maxVolPerOrder: maxVol,
+		api:            api}
 	lvl.heap.parent = &lvl
-
-	if parent != nil && parent.parentBook != nil {
-		lvl.maxVolPerOrder = parent.parentBook.MaxVolPerOrder
-	}
 
 	lvl.splitVolumes(vol)
 

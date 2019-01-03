@@ -3,16 +3,19 @@ package orderbook
 import (
 	"testing"
 
+	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
+
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
 func TestPageHeap(t *testing.T) {
-	buyPage := createPage(autoorder.Buy, nil)
-	sellPage := createPage(autoorder.Sell, nil)
+	mock := new(trader.MockTrader)
+	buyPage := newPage(autoorder.Buy, 1000, mock)
+	sellPage := newPage(autoorder.Sell, 1000, mock)
 
 	for price := 2; price < 10; price++ {
-		buyPage.AddLevel(float64(price), 0)
-		sellPage.AddLevel(float64(price), 0)
+		buyPage.AddLevel(float64(price), 10)
+		sellPage.AddLevel(float64(price), 10)
 	}
 
 	if x := buyPage.BestPrice(); x != 9 {
@@ -23,7 +26,7 @@ func TestPageHeap(t *testing.T) {
 		t.Error("Sell page error")
 	}
 
-	if ok := buyPage.AddLevel(6, 0); ok || buyPage.Size() != 8 {
+	if ok := buyPage.AddLevel(6, 10); ok || buyPage.Size() != 8 {
 		t.Error("Buy page push error.")
 	} else if buyPage.BestLevel().LevelPrice != 9 {
 		t.Error("Buy page sort error.")
@@ -31,7 +34,7 @@ func TestPageHeap(t *testing.T) {
 		t.Log(buyPage.heap)
 	}
 
-	if ok := sellPage.AddLevel(1, 0); !ok || sellPage.Size() != 9 {
+	if ok := sellPage.AddLevel(1, 10); !ok || sellPage.Size() != 9 {
 		t.Error("Sell page push error.")
 	} else if sellPage.BestPrice() != 1 {
 		t.Error("Sell page sort error.")

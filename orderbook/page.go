@@ -4,6 +4,8 @@ import (
 	"container/heap"
 	"errors"
 
+	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
+
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
@@ -60,10 +62,11 @@ func (hp *priceHeap) removeAt(idx int) {
 }
 
 type page struct {
-	direction  autoorder.Direction
-	parentBook *Book
-	Levels     map[float64]*level
-	heap       priceHeap
+	direction      autoorder.Direction
+	Levels         map[float64]*level
+	maxVolPerOrder int64
+	heap           priceHeap
+	trader         trader.TraderAPI
 }
 
 // Overlapped 判断价格是否和当前方向上重叠
@@ -128,6 +131,8 @@ func (p *page) PopLevel() *level {
 		panic("heap data mismatch with Levels Cache.")
 	}
 
+	delete(p.Levels, lvlPrice)
+
 	return lvl
 }
 
@@ -139,7 +144,7 @@ func (p *page) AddLevel(price float64, volume int64) bool {
 
 	defer heap.Push(&p.heap, price)
 
-	newLevel := createLevel(price, volume, p)
+	newLevel := newLevel(price, volume, p.maxVolPerOrder, p)
 	p.Levels[price] = newLevel
 
 	return true
@@ -164,6 +169,8 @@ func (p *page) RemoveLevel(lvlPrice float64) *level {
 		break
 	}
 
+	delete(p.Levels, lvlPrice)
+
 	return lvl
 }
 
@@ -180,11 +187,26 @@ func (p *page) ModifyLevel(price float64, volume int64) bool {
 	return true
 }
 
-func createPage(d autoorder.Direction, parent *Book) *page {
+func (p *page) Order(price float64, vol int64) (autoorder.OrderID, error) {
+	return p.trader.Order(p.direction, price, vol)
+}
+
+func (p *page) Cancel(oid autoorder.OrderID) error {
+	return p.trader.Cancel(oid)
+}
+
+func (p *page) Hedge(price float64, vol int64) error {
+	_, err := p.trader.FAK(p.direction.Opposite(), price, vol)
+
+	return err
+}
+
+func newPage(d autoorder.Direction, maxVol int64, trader trader.TraderAPI) *page {
 	p := page{
-		direction:  d,
-		parentBook: parent,
-		Levels:     make(map[float64]*level)}
+		direction:      d,
+		maxVolPerOrder: maxVol,
+		trader:         trader,
+		Levels:         make(map[float64]*level)}
 
 	switch d {
 	case autoorder.Buy:

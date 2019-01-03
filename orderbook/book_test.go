@@ -3,11 +3,14 @@ package orderbook
 import (
 	"testing"
 
+	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
+
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
 func TestCreateOb(t *testing.T) {
-	ob := CreateOrderBook("SHFE", "fu1905", 1000, 0.1, 0.1, nil)
+	mock := new(trader.MockTrader)
+	ob := CreateOrderBook("SHFE", "fu1905", 1000, 0.1, 0.1, mock)
 
 	if id := ob.Identity(); id != "SHFE.fu1905" {
 		t.Error("Identity fail")
