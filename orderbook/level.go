@@ -213,7 +213,7 @@ func (lvl *level) splitVolumes(vol int64) {
 	var ordVol int64
 
 	for remainedVol > 0 {
-		r := rand.New(rand.NewSource(time.Now().Unix()))
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 		if lvl.Count() < tinyVolumeCount {
 			// 随机数范围为[0, n), 随机数值+1以避免vol出现0值
