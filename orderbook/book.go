@@ -20,7 +20,7 @@ func (id *identity) Identity() string {
 }
 
 func validateVolume(vol int64) bool {
-	return vol != 0
+	return vol > 0
 }
 
 func validatePrice(price float64) bool {

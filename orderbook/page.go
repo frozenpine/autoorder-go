@@ -138,6 +138,10 @@ func (p *page) PopLevel() *level {
 
 // AddLevel 在当前方向上新增一个价格Level
 func (p *page) AddLevel(price float64, volume int64) bool {
+	if !validateVolume(volume) || !validatePrice(price) {
+		return false
+	}
+
 	if _, err := p.GetLevel(price); err == nil {
 		return false
 	}
@@ -176,6 +180,10 @@ func (p *page) RemoveLevel(lvlPrice float64) *level {
 
 // ModifyLevel 在当前方向上修改对应价格Level的量
 func (p *page) ModifyLevel(price float64, volume int64) bool {
+	if !validateVolume(volume) {
+		return false
+	}
+
 	lvl, err := p.GetLevel(price)
 
 	if err != nil {
