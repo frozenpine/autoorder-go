@@ -39,6 +39,45 @@ func (d Direction) Name() string {
 	}
 }
 
+// Tick 行情Tick
+type Tick struct {
+	Symbol        string  `json:"Symbol"`
+	AskPrice      float64 `json:"AskPrice"`
+	AskVolume     int64   `json:"AskVolume"`
+	BidPrice      float64 `json:"BidPrice"`
+	BidVolume     int64   `json:"BidVolume"`
+	LastPrice     float64 `json:"LastPrice"`
+	LastVolume    int64   `json:"LastVolume"`
+	HightestPrice float64 `json:"HightestPrice"`
+	LowestPrice   float64 `json:"LowestPrice"`
+	MTS           int     `json:"MTS"`
+}
+
+// Order 逐笔委托更新
+type Order struct {
+	Price  float64 `json:"Price"`
+	Volume int64   `json:"Volume"`
+	Count  int     `json:"Count"`
+}
+
+// Candle K线数据
+type Candle struct {
+	Open   float64 `json:"Open"`
+	Close  float64 `json:"Close"`
+	High   float64 `json:"High"`
+	Low    float64 `json:"Low"`
+	Volume int64   `json:"Volume"`
+	MTS    int     `json:"MTS"`
+}
+
+// Trade 成交数据
+type Trade struct {
+	TradeID int64   `json:"TradeID"`
+	Price   float64 `json:"Price"`
+	Volume  int64   `json:"Volume"`
+	MTS     int     `json:"MTS"`
+}
+
 // MaxFloat64 查找一组float64中的最大值
 func MaxFloat64(f ...float64) float64 {
 	var max float64
