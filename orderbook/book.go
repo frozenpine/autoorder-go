@@ -10,8 +10,8 @@ import (
 )
 
 type identity struct {
-	ExchangeID   string `json:"ExchangeID"`
-	InstrumentID string `json:"InstrumentID"`
+	ExchangeID   string
+	InstrumentID string
 }
 
 func (id *identity) Identity() string {
@@ -57,7 +57,7 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 	if err != nil {
 		dst.ModifyLevel(price, volume)
 	} else {
-		dst.AddLevel(price, volume)
+		dst.MakeLevel(price, volume)
 	}
 }
 

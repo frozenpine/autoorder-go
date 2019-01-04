@@ -9,15 +9,15 @@ import (
 const blockVolume int64 = 10000
 
 type spread struct {
-	MakeBlock     bool    `json:"MakeBlock"`
-	BlockTick     int     `json:"BlockTick"`
-	TickPrice     float64 `json:"TickPrice"`
-	OpenPrice     float64 `json:"OpenPrice"`
-	ClosePrice    float64 `json:"ClosePrice"`
-	HightestPrice float64 `json:"HightestPrice"`
-	LowestPrice   float64 `json:"LowestPrice"`
-	LimitPrice    float64 `json:"LimitPrice"`
-	StopPrice     float64 `json:"StopPrice"`
+	MakeBlock     bool
+	BlockTick     int
+	TickPrice     float64
+	OpenPrice     float64
+	ClosePrice    float64
+	HightestPrice float64
+	LowestPrice   float64
+	LimitPrice    float64
+	StopPrice     float64
 	orderBook     *Book
 	ceilBlock     *level
 	floorBlock    *level

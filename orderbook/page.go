@@ -136,8 +136,8 @@ func (p *page) PopLevel() *level {
 	return lvl
 }
 
-// AddLevel 在当前方向上新增一个价格Level
-func (p *page) AddLevel(price float64, volume int64) bool {
+// MakeLevel 在当前方向上新增一个价格Level
+func (p *page) MakeLevel(price float64, volume int64) bool {
 	if !autoorder.ValidateVolume(volume) || !autoorder.ValidatePrice(price) {
 		return false
 	}
