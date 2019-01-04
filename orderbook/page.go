@@ -148,7 +148,7 @@ func (p *page) AddLevel(price float64, volume int64) bool {
 
 	defer heap.Push(&p.heap, price)
 
-	newLevel := newLevel(price, volume, p.maxVolPerOrder, p)
+	newLevel := newLevel(price, volume, p.maxVolPerOrder, p, true)
 	p.Levels[price] = newLevel
 
 	return true
@@ -207,6 +207,16 @@ func (p *page) Hedge(price float64, vol int64) error {
 	_, err := p.trader.FAK(p.direction.Opposite(), price, vol)
 
 	return err
+}
+
+func (p *page) Snapshot() []autoorder.Snapshot {
+	rtn := make([]autoorder.Snapshot, 0, p.Size())
+
+	for _, lvl := range p.Levels {
+		rtn = append(rtn, lvl.Snapshot())
+	}
+
+	return rtn
 }
 
 func newPage(d autoorder.Direction, maxVol int64, trader trader.TraderAPI) *page {

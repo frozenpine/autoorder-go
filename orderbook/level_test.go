@@ -11,7 +11,7 @@ func TestLevelHeap(t *testing.T) {
 	mock := new(trader.MockTrader)
 	page := newPage(autoorder.Buy, 1000, mock)
 
-	level := newLevel(12.6, 100, 1000, page)
+	level := newLevel(12.6, 100, 1000, page, true)
 
 	if level.TotalVolume() != 100 {
 		t.Error("Split volume error.")
@@ -20,6 +20,19 @@ func TestLevelHeap(t *testing.T) {
 	oriCount := level.Count()
 
 	peekOrder := level.PeekOrder()
+
+	t.Log(peekOrder.Volume)
+	for _, oid := range level.heap.heap[1:] {
+		ord, err := level.GetOrder(oid)
+		if err != nil {
+			t.Error(err)
+		}
+		if peekOrder.Volume < ord.Volume {
+			t.Error("volumeHeep sort fail.")
+		} else {
+			t.Log(ord.Volume)
+		}
+	}
 
 	if level.Count() != oriCount {
 		t.Error("level PeekOrder failed.")

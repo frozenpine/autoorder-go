@@ -48,7 +48,7 @@ func TestPageHeap(t *testing.T) {
 	} else if lvl := sellPage.RemoveLevel(6); lvl == nil || sellPage.Size() != 7 || sellPage.BestPrice() != 2 {
 		t.Error("Sell page remove level error.")
 	} else {
-		t.Log(sellPage.Levels)
+		t.Log(sellPage.Snapshot())
 		t.Log(sellPage.heap)
 	}
 
@@ -58,7 +58,7 @@ func TestPageHeap(t *testing.T) {
 	} else if lvl := buyPage.RemoveLevel(8); lvl == nil || buyPage.Size() != 6 || buyPage.BestPrice() != 7 {
 		t.Error("Buy page remove level error.")
 	} else {
-		t.Log(buyPage.Levels)
+		t.Log(buyPage.Snapshot())
 		t.Log(buyPage.heap)
 	}
 }

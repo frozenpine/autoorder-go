@@ -11,8 +11,8 @@ import (
 )
 
 type identity struct {
-	ExchangeID   string
-	InstrumentID string
+	ExchangeID   string `json:"ExchangeID"`
+	InstrumentID string `json:"InstrumentID"`
 }
 
 func (id *identity) Identity() string {
@@ -67,7 +67,22 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 
 // Rebuild 根据已有委托重建订单簿
 func (ob *Book) Rebuild(d autoorder.Direction, price float64, vol int64, localID autoorder.OrderID, sysID int64) {
+	// todo: 重建订单簿逻辑
+}
 
+// Snapshot 获取订单簿快照
+func (ob *Book) Snapshot() autoorder.Snapshot {
+	rtn := ob.spread.Snapshot()
+
+	rtn["ExchangeID"] = ob.ExchangeID
+	rtn["InstrumentID"] = ob.InstrumentID
+
+	rtn["Asks"] = ob.Asks.Snapshot()
+	rtn["Bids"] = ob.Bids.Snapshot()
+
+	rtn["MaxVolPerOrder"] = ob.MaxVolPerOrder
+
+	return rtn
 }
 
 // CreateOrderBook OrderBook工厂函数
@@ -77,14 +92,15 @@ func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open f
 	}
 
 	book := Book{
-		trader:   api,
-		identity: identity{ExchangeID: exchangeID, InstrumentID: instrumentID},
-		spread:   spread{TickPrice: tick}}
-
-	book.initSpread(open, 0, 0, 0, 0)
+		trader:         api,
+		identity:       identity{ExchangeID: exchangeID, InstrumentID: instrumentID},
+		spread:         spread{TickPrice: tick},
+		MaxVolPerOrder: maxVol}
 
 	book.Asks = newPage(autoorder.Sell, maxVol, api)
 	book.Bids = newPage(autoorder.Buy, maxVol, api)
+
+	book.initSpread(&book, open, 0, 0, 0, 0)
 
 	return &book
 }

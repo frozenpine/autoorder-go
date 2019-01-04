@@ -6,22 +6,27 @@ import (
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
+const blockVolume int64 = 10000
+
 type spread struct {
-	makeBlock     bool
-	blockTick     int
-	TickPrice     float64
-	OpenPrice     float64
-	ClosePrice    float64
-	HightestPrice float64
-	LowerestPrice float64
-	LimitPrice    float64
-	StopPrice     float64
+	MakeBlock     bool    `json:"MakeBlock"`
+	BlockTick     int     `json:"BlockTick"`
+	TickPrice     float64 `json:"TickPrice"`
+	OpenPrice     float64 `json:"OpenPrice"`
+	ClosePrice    float64 `json:"ClosePrice"`
+	HightestPrice float64 `json:"HightestPrice"`
+	LowestPrice   float64 `json:"LowestPrice"`
+	LimitPrice    float64 `json:"LimitPrice"`
+	StopPrice     float64 `json:"StopPrice"`
+	orderBook     *Book
 	ceilBlock     *level
 	floorBlock    *level
 }
 
-func (sp *spread) initSpread(open, high, low, limit, stop float64) {
+func (sp *spread) initSpread(ob *Book, open, high, low, limit, stop float64) {
 	sp.OpenPrice = open
+
+	sp.orderBook = ob
 
 	if validatePrice(limit) {
 		sp.LimitPrice = limit
@@ -42,9 +47,9 @@ func (sp *spread) initSpread(open, high, low, limit, stop float64) {
 	}
 
 	if validatePrice(low) && low >= sp.StopPrice {
-		sp.LowerestPrice = low
+		sp.LowestPrice = low
 	} else {
-		sp.LowerestPrice = math.MaxFloat64
+		sp.LowestPrice = math.MaxFloat64
 	}
 }
 
@@ -57,18 +62,57 @@ func (sp *spread) calculateFloor(price float64) float64 {
 }
 
 func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
-	if !sp.makeBlock {
+	if !sp.MakeBlock {
 		return
 	}
 
+	var blockPrice float64
+	var blockLevel *level
+	var funcRenew func()
+
 	switch d {
 	case autoorder.Buy:
-		blockPrice := sp.calculateFloor(price)
-		if sp.floorBlock == nil || blockPrice < sp.floorBlock.LevelPrice {
-			sp.floorBlock.CancelAll()
+		blockPrice = sp.calculateFloor(price)
+		blockLevel = sp.floorBlock
+		funcRenew = func() {
+			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.MaxVolPerOrder, sp.orderBook.Bids, false)
+			sp.floorBlock = lvl
 		}
 	case autoorder.Sell:
+		blockPrice = sp.calculateCeil(price)
+		blockLevel = sp.ceilBlock
+		funcRenew = func() {
+			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.MaxVolPerOrder, sp.orderBook.Asks, false)
+			sp.ceilBlock = lvl
+		}
 	default:
 		panic("Invalid direction.")
 	}
+
+	if blockLevel != nil && blockPrice <= blockLevel.LevelPrice {
+		return
+	}
+
+	defer blockLevel.CancelAll()
+
+	funcRenew()
+}
+
+func (sp *spread) Snapshot() autoorder.Snapshot {
+	rtn := autoorder.Snapshot(make(map[string]interface{}))
+
+	rtn["MakeBlock"] = sp.MakeBlock
+	rtn["BlockTick"] = sp.BlockTick
+	rtn["TickPrice"] = sp.TickPrice
+	rtn["OpenPrice"] = sp.OpenPrice
+	rtn["ClosePrice"] = sp.ClosePrice
+	rtn["HightestPrice"] = sp.HightestPrice
+	rtn["LowestPrice"] = sp.LowestPrice
+	rtn["LimitPrice"] = sp.LimitPrice
+	rtn["StopPrice"] = sp.StopPrice
+
+	rtn["CeiLevel"] = sp.ceilBlock.Snapshot()
+	rtn["FloorLevel"] = sp.floorBlock.Snapshot()
+
+	return rtn
 }

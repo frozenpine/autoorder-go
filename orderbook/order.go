@@ -11,6 +11,17 @@ type order struct {
 	SysID        int64             `json:"OrderSysID"`
 }
 
+func (od *order) Snapshot() autoorder.Snapshot {
+	rtn := autoorder.Snapshot(make(map[string]interface{}))
+
+	rtn["Volume"] = od.Volume
+	rtn["TradedVolume"] = od.TradedVolume
+	rtn["LocalID"] = od.LocalID
+	rtn["SysID"] = od.SysID
+
+	return rtn
+}
+
 func newOrder(vol int64, oid autoorder.OrderID) *order {
 	ord := order{Volume: vol, LocalID: oid}
 

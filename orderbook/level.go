@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"container/heap"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
@@ -203,7 +202,7 @@ func (lvl *level) PopOrder() *order {
 	return ord
 }
 
-func (lvl *level) splitVolumes(vol int64) {
+func (lvl *level) splitVolumes(vol int64, makeTinyVol bool) {
 	oriTotal := lvl.TotalVolume()
 
 	if oriTotal >= vol {
@@ -219,7 +218,7 @@ func (lvl *level) splitVolumes(vol int64) {
 	var ordVol int64
 
 	for remainedVol > 0 {
-		if lvl.Count() < tinyVolumeCount {
+		if makeTinyVol && lvl.Count() < tinyVolumeCount {
 			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 			// 随机数范围为[0, n), 随机数值+1以避免vol出现0值
@@ -266,7 +265,7 @@ func (lvl *level) Modify(volume int64) {
 			volRemained -= maxVolOrder.Volume
 		}
 	} else {
-		lvl.splitVolumes(volume)
+		lvl.splitVolumes(volume, true)
 	}
 }
 
@@ -290,12 +289,27 @@ func (lvl *level) HedgeAll() {
 	lvl.api.Hedge(lvl.LevelPrice, lvl.TotalVolume())
 }
 
-func (lvl *level) Snapshot() string {
-	data, _ := json.Marshal(lvl.Orders)
-	return string(data)
+func (lvl *level) Snapshot() autoorder.Snapshot {
+	if lvl == nil {
+		return nil
+	}
+
+	rtn := autoorder.Snapshot(make(map[string]interface{}))
+
+	rtn["LevelPrice"] = lvl.LevelPrice
+
+	orders := make([]autoorder.Snapshot, 0, lvl.Count())
+
+	for _, ord := range lvl.Orders {
+		orders = append(orders, ord.Snapshot())
+	}
+
+	rtn["Orders"] = orders
+
+	return rtn
 }
 
-func newLevel(price float64, vol int64, maxVol int64, api orderAPI) *level {
+func newLevel(price float64, vol int64, maxVol int64, api orderAPI, makeTinyVol bool) *level {
 	lvl := level{
 		LevelPrice:     price,
 		Orders:         make(map[autoorder.OrderID]*order),
@@ -303,7 +317,7 @@ func newLevel(price float64, vol int64, maxVol int64, api orderAPI) *level {
 		api:            api}
 	lvl.heap.parent = &lvl
 
-	lvl.splitVolumes(vol)
+	lvl.splitVolumes(vol, makeTinyVol)
 
 	return &lvl
 }
