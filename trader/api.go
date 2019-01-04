@@ -1,6 +1,7 @@
 package trader
 
 import (
+	"fmt"
 	"log"
 	"sync/atomic"
 
@@ -21,11 +22,21 @@ type MockTrader struct {
 
 func (td *MockTrader) mockOrder(name string, d autoorder.Direction, price float64, vol int64) (autoorder.OrderID, error) {
 	log.Printf("MockTrader.%s called: %s %d@%f\n", name, d.Name(), vol, price)
+
+	if !autoorder.ValidateVolume(vol) {
+		return -1, fmt.Errorf("Invalid volume: %d", vol)
+	}
+
+	if !autoorder.ValidatePrice(price) {
+		return -1, fmt.Errorf("Invalid price: %f", price)
+	}
+
 	return autoorder.OrderID(atomic.AddInt64(&td.orderID, 1)), nil
 }
 
 // Order 报单接口
 func (td *MockTrader) Order(d autoorder.Direction, price float64, vol int64) (autoorder.OrderID, error) {
+
 	return td.mockOrder("Order", d, price, vol)
 }
 

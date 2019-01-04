@@ -11,7 +11,7 @@ func TestLevelHeap(t *testing.T) {
 	mock := new(trader.MockTrader)
 	page := newPage(autoorder.Buy, 1000, mock)
 
-	level := newLevel(12.6, 100, 1000, page, true)
+	level := newLevel(12.6, 100, page, true)
 
 	if level.TotalVolume() != 100 {
 		t.Error("Split volume error.")
@@ -60,12 +60,13 @@ func TestLevelHeap(t *testing.T) {
 		t.Error("TotalVolume func fail")
 	}
 
-	level.Modify(popedVolume - 10)
-
-	if level.Count() > oriCount-2 || level.TotalVolume() != popedVolume-10 {
-		t.Error("Modify down func fail.")
-	} else {
-		t.Log(level.Snapshot())
+	if level.Modify(popedVolume - 10) {
+		if level.TotalVolume() != popedVolume-10 {
+			t.Error("Modify down func fail.")
+		} else {
+			t.Log(level.Count())
+			t.Log(level.Snapshot())
+		}
 	}
 
 	level.Modify(1001)

@@ -9,6 +9,13 @@ type order struct {
 	TradedVolume int64             `json:"TradedVolume"`
 	LocalID      autoorder.OrderID `json:"OrderLocalID"`
 	SysID        int64             `json:"OrderSysID"`
+	parentLevel  *level
+}
+
+func (od *order) cleanUp() {
+	od.parentLevel.DeleteOrder(od.LocalID)
+
+	od.parentLevel = nil
 }
 
 func (od *order) Snapshot() autoorder.Snapshot {
@@ -22,8 +29,8 @@ func (od *order) Snapshot() autoorder.Snapshot {
 	return rtn
 }
 
-func newOrder(vol int64, oid autoorder.OrderID) *order {
-	ord := order{Volume: vol, LocalID: oid}
+func newOrder(vol int64, oid autoorder.OrderID, parent *level) *order {
+	ord := order{Volume: vol, LocalID: oid, parentLevel: parent}
 
 	return &ord
 }

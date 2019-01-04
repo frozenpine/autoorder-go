@@ -120,7 +120,7 @@ func (p *page) Size() int {
 	panic("heap size mismatch with Levels cache.")
 }
 
-// PopLevel 删除当前方向上的最优价Level
+// PopLevel 删除当前方向上的最优价Level, 并对冲所有量
 func (p *page) PopLevel() *level {
 	lvlPrice := heap.Pop(&p.heap).(float64)
 
@@ -138,7 +138,7 @@ func (p *page) PopLevel() *level {
 
 // AddLevel 在当前方向上新增一个价格Level
 func (p *page) AddLevel(price float64, volume int64) bool {
-	if !validateVolume(volume) || !validatePrice(price) {
+	if !autoorder.ValidateVolume(volume) || !autoorder.ValidatePrice(price) {
 		return false
 	}
 
@@ -148,13 +148,13 @@ func (p *page) AddLevel(price float64, volume int64) bool {
 
 	defer heap.Push(&p.heap, price)
 
-	newLevel := newLevel(price, volume, p.maxVolPerOrder, p, true)
+	newLevel := newLevel(price, volume, p, true)
 	p.Levels[price] = newLevel
 
 	return true
 }
 
-// RemoveLevel 在当前方向上删除价格Level
+// RemoveLevel 在当前方向上删除价格Level, 并撤销该Level的全部委托
 func (p *page) RemoveLevel(lvlPrice float64) *level {
 	lvl, exist := p.Levels[lvlPrice]
 
@@ -180,7 +180,7 @@ func (p *page) RemoveLevel(lvlPrice float64) *level {
 
 // ModifyLevel 在当前方向上修改对应价格Level的量
 func (p *page) ModifyLevel(price float64, volume int64) bool {
-	if !validateVolume(volume) {
+	if !autoorder.ValidateVolume(volume) {
 		return false
 	}
 

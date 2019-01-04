@@ -28,25 +28,25 @@ func (sp *spread) initSpread(ob *Book, open, high, low, limit, stop float64) {
 
 	sp.orderBook = ob
 
-	if validatePrice(limit) {
+	if autoorder.ValidatePrice(limit) {
 		sp.LimitPrice = limit
 	} else {
 		sp.LimitPrice = math.MaxFloat64
 	}
 
-	if validatePrice(stop) {
+	if autoorder.ValidatePrice(stop) {
 		sp.StopPrice = stop
 	} else {
 		sp.StopPrice = 0
 	}
 
-	if validatePrice(high) && high <= sp.LimitPrice {
+	if autoorder.ValidatePrice(high) && high <= sp.LimitPrice {
 		sp.HightestPrice = high
 	} else {
 		sp.HightestPrice = 0
 	}
 
-	if validatePrice(low) && low >= sp.StopPrice {
+	if autoorder.ValidatePrice(low) && low >= sp.StopPrice {
 		sp.LowestPrice = low
 	} else {
 		sp.LowestPrice = math.MaxFloat64
@@ -75,14 +75,14 @@ func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
 		blockPrice = sp.calculateFloor(price)
 		blockLevel = sp.floorBlock
 		funcRenew = func() {
-			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.MaxVolPerOrder, sp.orderBook.Bids, false)
+			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Bids, false)
 			sp.floorBlock = lvl
 		}
 	case autoorder.Sell:
 		blockPrice = sp.calculateCeil(price)
 		blockLevel = sp.ceilBlock
 		funcRenew = func() {
-			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.MaxVolPerOrder, sp.orderBook.Asks, false)
+			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Asks, false)
 			sp.ceilBlock = lvl
 		}
 	default:

@@ -6,7 +6,7 @@ import (
 )
 
 func TestMarshalJson(t *testing.T) {
-	ord := newOrder(100, 1)
+	ord := newOrder(100, 1, nil)
 
 	data, err := json.Marshal(ord)
 

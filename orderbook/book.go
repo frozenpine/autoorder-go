@@ -3,7 +3,6 @@ package orderbook
 import (
 	"fmt"
 	"log"
-	"math"
 
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 
@@ -19,14 +18,6 @@ func (id *identity) Identity() string {
 	return fmt.Sprintf("%s.%s", id.ExchangeID, id.InstrumentID)
 }
 
-func validateVolume(vol int64) bool {
-	return vol > 0
-}
-
-func validatePrice(price float64) bool {
-	return price != 0 && price != math.MaxFloat64
-}
-
 // Book 订单簿
 type Book struct {
 	identity
@@ -39,6 +30,10 @@ type Book struct {
 
 // Update 更新订单簿中的价格和量
 func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
+	if !autoorder.ValidatePrice(price) || !autoorder.ValidateVolume(volume) {
+		return
+	}
+
 	var dst, oppsite *page
 	switch d {
 	case autoorder.Sell:
@@ -53,7 +48,8 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 
 	for oppsite.Overlapped(price) {
 		lvl := oppsite.PopLevel()
-		log.Println(lvl)
+
+		log.Println(lvl.Snapshot())
 	}
 
 	_, err := dst.GetLevel(price)
@@ -87,7 +83,7 @@ func (ob *Book) Snapshot() autoorder.Snapshot {
 
 // CreateOrderBook OrderBook工厂函数
 func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, api trader.TraderAPI) *Book {
-	if !validateVolume(maxVol) || !validatePrice(tick) || !validatePrice(open) {
+	if !autoorder.ValidateVolume(maxVol) || !autoorder.ValidatePrice(tick) || !autoorder.ValidatePrice(open) {
 		return nil
 	}
 

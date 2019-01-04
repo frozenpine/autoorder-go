@@ -1,5 +1,7 @@
 package autoorder
 
+import "math"
+
 // Snapshot 数据快照
 type Snapshot map[string]interface{}
 
@@ -10,4 +12,12 @@ func SnapshotMerge(dst Snapshot, src Snapshot) Snapshot {
 	}
 
 	return dst
+}
+
+func ValidateVolume(vol int64) bool {
+	return vol > 0
+}
+
+func ValidatePrice(price float64) bool {
+	return price != 0 && price != math.MaxFloat64
 }

@@ -66,19 +66,13 @@ func (h *volumeHeap) removeAt(idx int) {
 	heap.Init(h)
 }
 
-type orderAPI interface {
-	Order(price float64, vol int64) (autoorder.OrderID, error)
-	Cancel(oid autoorder.OrderID) error
-	Hedge(price float64, vol int64) error
-}
-
 type level struct {
 	LevelPrice     float64
 	Orders         map[autoorder.OrderID]*order
 	sysIDMapper    map[int64]autoorder.OrderID
 	heap           volumeHeap
 	maxVolPerOrder int64
-	api            orderAPI
+	parentPage     *page
 }
 
 func (lvl *level) Exist(ord *order) bool {
@@ -125,13 +119,13 @@ func (lvl *level) Count() int {
 }
 
 func (lvl *level) NewOrder(vol int64) error {
-	oid, err := lvl.api.Order(lvl.LevelPrice, vol)
+	oid, err := lvl.parentPage.Order(lvl.LevelPrice, vol)
 
 	if err != nil {
 		return err
 	}
 
-	ord := newOrder(vol, oid)
+	ord := newOrder(vol, oid, lvl)
 
 	lvl.Orders[oid] = ord
 
@@ -151,6 +145,15 @@ func (lvl *level) GetOrder(oid autoorder.OrderID) (*order, error) {
 	return nil, fmt.Errorf("Order not exist with localID[%d]", oid)
 }
 
+func (lvl *level) handleDeleteOrder(ord *order) {
+	lvl.parentPage.Cancel(ord.LocalID)
+
+	if lvl.Count() == 0 {
+		lvl.cleanUp()
+	}
+}
+
+// DeleteOrder 删除指定OrderLocalID的委托, 并在交易系统撤单
 func (lvl *level) DeleteOrder(oid autoorder.OrderID) (*order, error) {
 	ord, err := lvl.GetOrder(oid)
 
@@ -158,7 +161,7 @@ func (lvl *level) DeleteOrder(oid autoorder.OrderID) (*order, error) {
 		return nil, err
 	}
 
-	defer lvl.api.Cancel(ord.LocalID)
+	defer lvl.handleDeleteOrder(ord)
 
 	delete(lvl.Orders, ord.LocalID)
 	delete(lvl.sysIDMapper, ord.SysID)
@@ -196,6 +199,8 @@ func (lvl *level) PopOrder() *order {
 		panic("heap data mismatch with Orders cache.")
 	}
 
+	defer lvl.handleDeleteOrder(ord)
+
 	delete(lvl.Orders, oid)
 	delete(lvl.sysIDMapper, ord.SysID)
 
@@ -209,7 +214,7 @@ func (lvl *level) splitVolumes(vol int64, makeTinyVol bool) {
 		return
 	}
 
-	if !validateVolume(lvl.maxVolPerOrder) {
+	if !autoorder.ValidateVolume(lvl.maxVolPerOrder) {
 		lvl.NewOrder(vol)
 		return
 	}
@@ -241,11 +246,15 @@ func (lvl *level) splitVolumes(vol int64, makeTinyVol bool) {
 	}
 }
 
-func (lvl *level) Modify(volume int64) {
+func (lvl *level) Modify(volume int64) bool {
+	if !autoorder.ValidateVolume(volume) {
+		return false
+	}
+
 	diffVolume := lvl.TotalVolume() - volume
 
 	if diffVolume == 0 {
-		return
+		return false
 	}
 
 	volRemained := diffVolume
@@ -253,40 +262,45 @@ func (lvl *level) Modify(volume int64) {
 	if diffVolume > 0 {
 		// 新的Volume量少, 需要取消原有Level中委托的量
 		for {
-			maxVolOrder := lvl.PopOrder()
-
-			lvl.api.Cancel(maxVolOrder.LocalID)
+			maxVolOrder := lvl.PeekOrder()
 
 			if maxVolOrder.Volume >= volRemained {
 				lvl.NewOrder(maxVolOrder.Volume - volRemained)
+				lvl.PopOrder()
 				break
+			} else {
+				lvl.PopOrder()
+				volRemained -= maxVolOrder.Volume
 			}
-
-			volRemained -= maxVolOrder.Volume
 		}
 	} else {
 		lvl.splitVolumes(volume, true)
 	}
+
+	return true
 }
 
-func (lvl *level) remove() {
+func (lvl *level) cleanUp() {
+	lvl.parentPage.RemoveLevel(lvl.LevelPrice)
+
 	lvl.heap.heap = nil
 	lvl.Orders = nil
 	lvl.sysIDMapper = nil
+	lvl.parentPage = nil
 }
 
 func (lvl *level) CancelAll() {
-	defer lvl.remove()
+	defer lvl.cleanUp()
 
 	for oid := range lvl.Orders {
-		lvl.api.Cancel(oid)
+		lvl.parentPage.Cancel(oid)
 	}
 }
 
 func (lvl *level) HedgeAll() {
-	defer lvl.remove()
+	defer lvl.cleanUp()
 
-	lvl.api.Hedge(lvl.LevelPrice, lvl.TotalVolume())
+	lvl.parentPage.Hedge(lvl.LevelPrice, lvl.TotalVolume())
 }
 
 func (lvl *level) Snapshot() autoorder.Snapshot {
@@ -309,12 +323,12 @@ func (lvl *level) Snapshot() autoorder.Snapshot {
 	return rtn
 }
 
-func newLevel(price float64, vol int64, maxVol int64, api orderAPI, makeTinyVol bool) *level {
+func newLevel(price float64, vol int64, parent *page, makeTinyVol bool) *level {
 	lvl := level{
 		LevelPrice:     price,
 		Orders:         make(map[autoorder.OrderID]*order),
-		maxVolPerOrder: maxVol,
-		api:            api}
+		maxVolPerOrder: parent.maxVolPerOrder,
+		parentPage:     parent}
 	lvl.heap.parent = &lvl
 
 	lvl.splitVolumes(vol, makeTinyVol)
