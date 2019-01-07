@@ -57,7 +57,7 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 	if err != nil {
 		dst.ModifyLevel(price, volume)
 	} else {
-		dst.MakeLevel(price, volume)
+		dst.MakeLevel(price, volume, true)
 	}
 }
 

@@ -57,7 +57,7 @@ func (sp *spread) initSpread(ob *Book, open, high, low, limit, stop float64) {
 }
 
 func (sp *spread) calculateCeil(price float64) float64 {
-	if sp.BlockTick == 0 {
+	if 0 == sp.BlockTick {
 		sp.BlockTick = 10
 	}
 
@@ -72,7 +72,7 @@ func (sp *spread) calculateCeil(price float64) float64 {
 }
 
 func (sp *spread) calculateFloor(price float64) float64 {
-	if sp.BlockTick == 0 {
+	if 0 == sp.BlockTick {
 		sp.BlockTick = 10
 	}
 
@@ -107,7 +107,8 @@ func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
 		}
 
 		funcRenew = func() {
-			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Bids, false)
+			// lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Bids, false)
+			lvl := sp.orderBook.Bids.MakeLevel(blockPrice, blockVolume, false)
 			sp.floorBlock = lvl
 		}
 	case autoorder.Sell:
@@ -120,7 +121,8 @@ func (sp *spread) UpdateBlock(d autoorder.Direction, price float64) {
 		}
 
 		funcRenew = func() {
-			lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Asks, false)
+			// lvl := newLevel(blockPrice, blockVolume, sp.orderBook.Asks, false)
+			lvl := sp.orderBook.Asks.MakeLevel(blockPrice, blockVolume, false)
 			sp.ceilBlock = lvl
 		}
 	default:

@@ -14,8 +14,8 @@ func TestPageHeap(t *testing.T) {
 	sellPage := newPage(autoorder.Sell, 0, mock)
 
 	for price := 2; price < 10; price++ {
-		buyPage.MakeLevel(float64(price), 10)
-		sellPage.MakeLevel(float64(price), 10)
+		buyPage.MakeLevel(float64(price), 10, true)
+		sellPage.MakeLevel(float64(price), 10, true)
 	}
 
 	if x := buyPage.BestPrice(); x != 9 {
@@ -26,7 +26,7 @@ func TestPageHeap(t *testing.T) {
 		t.Error("Sell page error")
 	}
 
-	if ok := buyPage.MakeLevel(6, 10); ok || buyPage.Size() != 8 {
+	if lvl := buyPage.MakeLevel(6, 10, true); lvl != nil || buyPage.Size() != 8 {
 		t.Error("Buy page push error.")
 	} else if buyPage.BestLevel().LevelPrice != 9 {
 		t.Error("Buy page sort error.")
@@ -34,7 +34,7 @@ func TestPageHeap(t *testing.T) {
 		t.Log(buyPage.heap)
 	}
 
-	if ok := sellPage.MakeLevel(1, 10); !ok || sellPage.Size() != 9 {
+	if lvl := sellPage.MakeLevel(1, 10, true); lvl == nil || sellPage.Size() != 9 {
 		t.Error("Sell page push error.")
 	} else if sellPage.BestPrice() != 1 {
 		t.Error("Sell page sort error.")

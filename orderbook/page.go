@@ -137,21 +137,21 @@ func (p *page) PopLevel() *level {
 }
 
 // MakeLevel 在当前方向上新增一个价格Level
-func (p *page) MakeLevel(price float64, volume int64) bool {
+func (p *page) MakeLevel(price float64, volume int64, tinyVolume bool) *level {
 	if !autoorder.ValidateVolume(volume) || !autoorder.ValidatePrice(price) {
-		return false
+		return nil
 	}
 
 	if _, err := p.GetLevel(price); err == nil {
-		return false
+		return nil
 	}
 
 	defer heap.Push(&p.heap, price)
 
-	newLevel := newLevel(price, volume, p, true)
+	newLevel := newLevel(price, volume, p, tinyVolume)
 	p.Levels[price] = newLevel
 
-	return true
+	return newLevel
 }
 
 // RemoveLevel 在当前方向上删除价格Level, 并撤销该Level的全部委托
