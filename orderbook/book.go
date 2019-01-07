@@ -46,6 +46,8 @@ func (ob *Book) Update(d autoorder.Direction, price float64, volume int64) {
 		panic("Invalid direction.")
 	}
 
+	defer ob.UpdateBlock(d, price)
+
 	for oppsite.Overlapped(price) {
 		lvl := oppsite.PopLevel()
 
