@@ -4,11 +4,10 @@ import (
 	"testing"
 
 	"gitlab.quantdo.cn/yuanyang/autoorder"
-	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
 )
 
 func TestCalculateBlock(t *testing.T) {
-	mock := new(trader.MockTrader)
+	mock := new(autoorder.MockTrader)
 	ob := CreateOrderBook("SHFE", "fu1905", 1000, 0.1, 0.1, mock)
 
 	ob.UpdateBlock(autoorder.Buy, 123)

@@ -3,13 +3,11 @@ package orderbook
 import (
 	"testing"
 
-	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
-
 	"gitlab.quantdo.cn/yuanyang/autoorder"
 )
 
 func TestPageHeap(t *testing.T) {
-	mock := new(trader.MockTrader)
+	mock := new(autoorder.MockTrader)
 	buyPage := newPage(autoorder.Buy, 1000, mock)
 	sellPage := newPage(autoorder.Sell, 0, mock)
 

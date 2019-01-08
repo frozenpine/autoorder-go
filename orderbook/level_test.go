@@ -4,11 +4,10 @@ import (
 	"testing"
 
 	"gitlab.quantdo.cn/yuanyang/autoorder"
-	"gitlab.quantdo.cn/yuanyang/autoorder/trader"
 )
 
 func TestLevelHeap(t *testing.T) {
-	mock := new(trader.MockTrader)
+	mock := new(autoorder.MockTrader)
 	page := newPage(autoorder.Buy, 1000, mock)
 
 	level := newLevel(12.6, 100, page, true)
