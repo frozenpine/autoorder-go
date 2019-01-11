@@ -8,6 +8,5 @@ cover:
   - PROJECT_PATH=$GOPATH/src/gitlab.quantdo.cn/yuanyang/autoorder
   - mkdir -p `dirname $PROJECT_PATH`
   - ln -s `pwd` $PROJECT_PATH
-  - echo GOROOT=$GOROOT
-  - echo GOPATH=$GOPATH
+  - cd $PROJECT_PATH
   - go test -cover `go list ./...`
