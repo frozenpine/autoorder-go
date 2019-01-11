@@ -5,5 +5,6 @@ stages:
 cover:
   stage: test
   script:
+  - export GOPATH=`pwd`
   - cd orderbook
   - go test -cover
