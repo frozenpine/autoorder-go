@@ -5,4 +5,5 @@ stages:
 cover:
   stage: test
   script:
-  - "echo \"coverage: 87.5% of statements\""
+  - cd orderbook
+  - go test -cover
