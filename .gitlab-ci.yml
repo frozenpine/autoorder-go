@@ -9,4 +9,5 @@ cover:
   - mkdir -p `dirname $PROJECT_PATH`
   - ln -s `pwd` $PROJECT_PATH
   - cd $PROJECT_PATH
-  - go test -cover `go list ./...`
+  - cd orderbook
+  - go test -cover
