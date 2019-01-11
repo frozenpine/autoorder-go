@@ -5,7 +5,7 @@ stages:
 cover:
   stage: test
   script:
-  - export GOPATH=`pwd`
+  - ln -s `pwd` $GOPATH/src/gitlab.quantdo.cn/yuanyang/autoorder
   - echo GOROOT=$GOROOT
   - echo GOPATH=$GOPATH
   - cd orderbook
