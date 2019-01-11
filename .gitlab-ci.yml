@@ -1,0 +1,9 @@
+stages:
+  - test
+  - build
+
+cover:
+  stage: test
+  script:
+  - pushd orderbook
+  - go test -cover
