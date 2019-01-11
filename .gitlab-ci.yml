@@ -10,5 +10,4 @@ cover:
   - ln -s `pwd` $PROJECT_PATH
   - echo GOROOT=$GOROOT
   - echo GOPATH=$GOPATH
-  - cd orderbook
-  - go test -cover
+  - go test -cover `go list ./...`
