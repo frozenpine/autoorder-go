@@ -6,5 +6,7 @@ cover:
   stage: test
   script:
   - export GOPATH=`pwd`
+  - echo GOROOT=$GOROOT
+  - echo GOPATH=$GOPATH
   - cd orderbook
   - go test -cover
