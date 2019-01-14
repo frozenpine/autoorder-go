@@ -11,6 +11,16 @@ type MockTrader struct {
 	orderID int64
 }
 
+// Login 登录接口
+func (td *MockTrader) Login(loginInfo map[string]string) error {
+	return nil
+}
+
+// Logout 登出接口
+func (td *MockTrader) Logout() error {
+	return nil
+}
+
 func (td *MockTrader) mockOrder(name string, d Direction, price float64, vol int64) (OrderID, error) {
 	log.Printf("MockTrader.%s called: %s %d@%f\n", name, d.Name(), vol, price)
 
