@@ -1,7 +1,5 @@
 package autoorder
 
-import "math"
-
 // OrderID 本地报单编号
 type OrderID int64
 
@@ -78,22 +76,14 @@ type Trade struct {
 	MTS     int     `json:"MTS"`
 }
 
-// MaxFloat64 查找一组float64中的最大值
-func MaxFloat64(f ...float64) float64 {
-	var max float64
-	max = 0
-	for _, v := range f {
-		max = math.Max(max, v)
-	}
-	return max
-}
+// Snapshot 数据快照
+type Snapshot map[string]interface{}
 
-// MinFloat64 查找一组float64中的最小值
-func MinFloat64(f ...float64) float64 {
-	var min float64
-	min = math.MaxFloat64
-	for _, v := range f {
-		min = math.Min(min, v)
+// MergeSnapshot 合并两个快照至dst, 如存在Key重复, src的Value将覆盖dst的Value
+func MergeSnapshot(dst Snapshot, src Snapshot) Snapshot {
+	for key, value := range src {
+		dst[key] = value
 	}
-	return min
+
+	return dst
 }

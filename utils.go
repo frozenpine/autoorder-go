@@ -2,18 +2,6 @@ package autoorder
 
 import "math"
 
-// Snapshot 数据快照
-type Snapshot map[string]interface{}
-
-// MergeSnapshot 合并两个快照至dst, 如存在Key重复, src的Value将覆盖dst的Value
-func MergeSnapshot(dst Snapshot, src Snapshot) Snapshot {
-	for key, value := range src {
-		dst[key] = value
-	}
-
-	return dst
-}
-
 // ValidateVolume 校验Volume合法性, <=0 非法
 func ValidateVolume(vol int64) bool {
 	return vol > 0
@@ -51,4 +39,24 @@ func NormalizePrice(price, tickPrice float64, round roundMode) float64 {
 	}
 
 	return tickPrice * multiple
+}
+
+// MaxFloat64 查找一组float64中的最大值
+func MaxFloat64(f ...float64) float64 {
+	var max float64
+	max = 0
+	for _, v := range f {
+		max = math.Max(max, v)
+	}
+	return max
+}
+
+// MinFloat64 查找一组float64中的最小值
+func MinFloat64(f ...float64) float64 {
+	var min float64
+	min = math.MaxFloat64
+	for _, v := range f {
+		min = math.Min(min, v)
+	}
+	return min
 }

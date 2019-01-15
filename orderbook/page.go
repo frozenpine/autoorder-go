@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"gitlab.quantdo.cn/yuanyang/autoorder"
+	autoapi "gitlab.quantdo.cn/yuanyang/autoorder/api"
 )
 
 type priceHeap struct {
@@ -64,7 +65,7 @@ type page struct {
 	Levels         map[float64]*level
 	maxVolPerOrder int64
 	heap           priceHeap
-	trader         autoorder.TraderAPI
+	trader         autoapi.TraderAPI
 }
 
 // Overlapped 判断价格是否和当前方向上重叠
@@ -217,7 +218,7 @@ func (p *page) Snapshot() []autoorder.Snapshot {
 	return rtn
 }
 
-func newPage(d autoorder.Direction, maxVol int64, trader autoorder.TraderAPI) *page {
+func newPage(d autoorder.Direction, maxVol int64, trader autoapi.TraderAPI) *page {
 	p := page{
 		direction:      d,
 		maxVolPerOrder: maxVol,

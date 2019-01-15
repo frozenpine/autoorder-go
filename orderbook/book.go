@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"gitlab.quantdo.cn/yuanyang/autoorder"
+	autoapi "gitlab.quantdo.cn/yuanyang/autoorder/api"
 )
 
 type identity struct {
@@ -20,7 +21,7 @@ func (id *identity) Identity() string {
 type Book struct {
 	identity
 	spread
-	trader         autoorder.TraderAPI
+	trader         autoapi.TraderAPI
 	MaxVolPerOrder int64
 	Asks           *page
 	Bids           *page
@@ -82,7 +83,7 @@ func (ob *Book) Snapshot() autoorder.Snapshot {
 }
 
 // CreateOrderBook OrderBook工厂函数
-func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, api autoorder.TraderAPI) *Book {
+func CreateOrderBook(exchangeID, instrumentID string, maxVol int64, tick, open float64, api autoapi.TraderAPI) *Book {
 	if !autoorder.ValidateVolume(maxVol) || !autoorder.ValidatePrice(tick) || !autoorder.ValidatePrice(open) {
 		return nil
 	}
