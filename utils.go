@@ -67,29 +67,26 @@ func MinFloat64(f ...float64) float64 {
 }
 
 // TCPHandShake TCP三次握手测试
-// 如连接成功, 将返回 三次握手时间 / 3, 作为近似的单程物理延时
-func TCPHandShake(addr string, timeout time.Duration) (time.Duration, error) {
-	var sockErr error
-	ch := make(chan time.Duration)
+// 如连接成功, 将返回三次握手时间
+func TCPHandShake(addr string, timeout time.Duration) (dur time.Duration, err error) {
+	ch := make(chan error)
 
 	go func() {
 		start := time.Now()
-		conn, err := net.Dial("tcp", addr)
-		dur := time.Now().Sub(start)
+		conn, sockErr := net.Dial("tcp", addr)
+		end := time.Now()
 
-		if err != nil {
-			sockErr = err
-			ch <- time.Duration(0)
-		} else {
+		if sockErr == nil {
 			conn.Close()
-			ch <- dur / 3
+			dur = end.Sub(start)
 		}
+		ch <- sockErr
 	}()
 
 	select {
-	case dur := <-ch:
-		return dur, sockErr
+	case err = <-ch:
 	case <-time.After(timeout):
-		return time.Duration(0), fmt.Errorf("connect timeout: %v", timeout)
+		err = fmt.Errorf("connect timeout: %v", timeout)
 	}
+	return
 }
