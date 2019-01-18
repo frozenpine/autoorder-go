@@ -1,6 +1,11 @@
 package autoorder
 
-import "math"
+import (
+	"fmt"
+	"math"
+	"net"
+	"time"
+)
 
 // ValidateVolume 校验Volume合法性, <=0 非法
 func ValidateVolume(vol int64) bool {
@@ -59,4 +64,32 @@ func MinFloat64(f ...float64) float64 {
 		min = math.Min(min, v)
 	}
 	return min
+}
+
+// TCPHandShake TCP三次握手测试
+// 如连接成功, 将返回 三次握手时间 / 3, 作为近似的单程物理延时
+func TCPHandShake(addr string, timeout time.Duration) (time.Duration, error) {
+	var sockErr error
+	ch := make(chan time.Duration)
+
+	go func() {
+		start := time.Now()
+		conn, err := net.Dial("tcp", addr)
+		dur := time.Now().Sub(start)
+
+		if err != nil {
+			sockErr = err
+			ch <- time.Duration(0)
+		} else {
+			conn.Close()
+			ch <- dur / 3
+		}
+	}()
+
+	select {
+	case dur := <-ch:
+		return dur, sockErr
+	case <-time.After(timeout):
+		return time.Duration(0), fmt.Errorf("connect timeout: %v", timeout)
+	}
 }
