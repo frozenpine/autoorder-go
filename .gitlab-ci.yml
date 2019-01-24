@@ -2,6 +2,7 @@ before_script:
   - export GOPATH=/opt/go
   - export PROJECT_NAME=autoorder
   - export PROJECT_PATH=$GOPATH/src/gitlab.quantdo.cn/yuanyang/${PROJECT_NAME:=CI_PROJECT_NAMESPACE}
+  - export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
   - mkdir -p `dirname $PROJECT_PATH`
   - ln -sf `pwd` $PROJECT_PATH
 
