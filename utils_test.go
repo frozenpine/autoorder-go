@@ -6,15 +6,15 @@ import (
 )
 
 func TestTCPHandShake(t *testing.T) {
-	if rrt, err := TCPHandShake(":1", time.Second*5); err == nil {
-		t.Error(rrt, err)
+	if hst, err := TCPHandShake(":1", time.Second*5); err == nil {
+		t.Error(hst, err)
 	} else {
-		t.Log(rrt, err)
+		t.Log(hst, err)
 	}
 
-	if rrt, err := TCPHandShake("baidu.com:80", time.Second*5); err != nil {
-		t.Error(rrt, err)
+	if hst, err := TCPHandShake("baidu.com:80", time.Second*5); err != nil {
+		t.Error(hst, err)
 	} else {
-		t.Log(rrt, err)
+		t.Log(hst, err)
 	}
 }

@@ -86,7 +86,7 @@ func TCPHandShake(addr string, timeout time.Duration) (dur time.Duration, err er
 	select {
 	case err = <-ch:
 	case <-time.After(timeout):
-		err = fmt.Errorf("connect timeout: %v", timeout)
+		err = fmt.Errorf("hand shake timeout: %v", timeout)
 	}
 	return
 }
